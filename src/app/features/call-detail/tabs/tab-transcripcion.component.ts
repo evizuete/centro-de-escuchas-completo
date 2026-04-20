@@ -9,11 +9,20 @@ type LangMode = 'es-orig' | 'es' | 'orig';
 type WavStyle = 'bars' | 'dual' | 'blocks';
 type AudioLang = 'original' | 'traducida';
 
-const TOTAL_SEC = 610; // 10:10
 const N_BARS = 96;
 const PRIO_COLOR: Record<string, string> = {
   ALTA: '#dc2626', MEDIA: '#f59e0b', BAJA: '#64748b',
 };
+
+/** "mm:ss" o "hh:mm:ss" → segundos. Devuelve 0 si no se puede parsear. */
+function durationToSec(s: string | undefined | null): number {
+  if (!s) return 0;
+  const parts = s.split(':').map((x) => parseInt(x, 10));
+  if (parts.some((n) => Number.isNaN(n))) return 0;
+  if (parts.length === 2) return parts[0] * 60 + parts[1];
+  if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+  return 0;
+}
 
 @Component({
   selector: 'app-tab-transcripcion',
@@ -26,7 +35,7 @@ const PRIO_COLOR: Record<string, string> = {
       <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; flex-wrap: wrap; gap: 10px;">
         <div>
           <h2 class="section-title" style="margin: 0;">Transcripción</h2>
-          <div class="card__subtitle">{{ d().transcripcion.length }} intervenciones · 10:10 total</div>
+          <div class="card__subtitle">{{ d().transcripcion.length }} intervenciones · {{ d().interaccion.duracion }} total</div>
         </div>
         <div style="display: flex; gap: 8px; flex-wrap: wrap;">
           <div class="seg seg--sm">
@@ -138,7 +147,7 @@ const PRIO_COLOR: Record<string, string> = {
             @for (m of momentos(); track $index; let i = $index) {
               <div
                 style="position: absolute; top: 0; transform: translateX(-50%); pointer-events: auto; cursor: pointer;"
-                [style.left.%]="(momSecs()[i] / totalSec) * 100"
+                [style.left.%]="(momSecs()[i] / totalSec()) * 100"
                 (mouseenter)="hoverMom.set(i)"
                 (mouseleave)="hoverMom.set(null)"
                 (click)="seekTo(momSecs()[i])"
@@ -223,7 +232,7 @@ const PRIO_COLOR: Record<string, string> = {
 
             <!-- Playhead -->
             <div
-              [style.left.%]="(curSec() / totalSec) * 100"
+              [style.left.%]="(curSec() / totalSec()) * 100"
               style="position: absolute; top: -4px; bottom: -4px; width: 2px;
                      background: #0f172a; transform: translateX(-50%);
                      pointer-events: none; box-shadow: 0 0 0 3px rgba(15,23,42,0.1);"
@@ -242,7 +251,7 @@ const PRIO_COLOR: Record<string, string> = {
           <!-- Tooltip -->
           @if (hoverMom() !== null && hoverMomData(); as mh) {
             <div
-              [style.left.%]="(momSecs()[hoverMom()!] / totalSec) * 100"
+              [style.left.%]="(momSecs()[hoverMom()!] / totalSec()) * 100"
               style="position: absolute; top: 26px; transform: translateX(-50%);
                      background: #0f172a; color: #fff;
                      padding: 8px 10px; border-radius: 6px;
@@ -343,7 +352,8 @@ export class TabTranscripcionComponent {
   readonly curSec = signal<number>(90);
   readonly hoverMom = signal<number | null>(null);
 
-  readonly totalSec = TOTAL_SEC;
+  /** Duración total en segundos, derivada de d().interaccion.duracion. */
+  readonly totalSec = computed<number>(() => durationToSec(this.d().interaccion.duracion));
   readonly langs: [LangMode, string][] = [
     ['es-orig', 'ES + ORI'],
     ['es', 'ES'],
@@ -365,7 +375,7 @@ export class TabTranscripcionComponent {
     const cur = this.curSec();
     return Array.from({ length: N_BARS }, (_, i) => {
       const h = 2 + Math.abs(Math.sin(i * 0.42 + 1.1)) * 24;
-      const played = (i / N_BARS) * this.totalSec < cur;
+      const played = (i / N_BARS) * this.totalSec() < cur;
       return { h, played };
     });
   });
@@ -375,7 +385,7 @@ export class TabTranscripcionComponent {
     const cur = this.curSec();
     return Array.from({ length: N_BARS }, (_, i) => {
       const h = 2 + Math.abs(Math.sin(i * 0.45 + 0.6)) * 22;
-      const played = (i / N_BARS) * this.totalSec < cur;
+      const played = (i / N_BARS) * this.totalSec() < cur;
       return { h, played };
     });
   });
@@ -383,7 +393,7 @@ export class TabTranscripcionComponent {
     const cur = this.curSec();
     return Array.from({ length: N_BARS }, (_, i) => {
       const h = 2 + Math.abs(Math.cos(i * 0.38 + 1.8)) * 22;
-      const played = (i / N_BARS) * this.totalSec < cur;
+      const played = (i / N_BARS) * this.totalSec() < cur;
       return { h, played };
     });
   });
@@ -393,7 +403,7 @@ export class TabTranscripcionComponent {
     const cur = this.curSec();
     return this.d().transcripcion.map((t) => {
       const ini = tToSec(t.ini), fin = tToSec(t.fin);
-      const w = ((fin - ini) / this.totalSec) * 100;
+      const w = ((fin - ini) / this.totalSec()) * 100;
       const played = cur >= fin;
       const current = cur >= ini && cur < fin;
       const isAg = t.actor === 'AGENTE';
@@ -416,7 +426,7 @@ export class TabTranscripcionComponent {
   }
 
   seekTo(sec: number): void {
-    this.curSec.set(Math.max(0, Math.min(this.totalSec, sec)));
+    this.curSec.set(Math.max(0, Math.min(this.totalSec(), sec)));
   }
 
   onWavClick(e: MouseEvent): void {
@@ -424,6 +434,6 @@ export class TabTranscripcionComponent {
     if (!el) return;
     const rect = el.getBoundingClientRect();
     const frac = (e.clientX - rect.left) / rect.width;
-    this.seekTo(frac * this.totalSec);
+    this.seekTo(frac * this.totalSec());
   }
 }

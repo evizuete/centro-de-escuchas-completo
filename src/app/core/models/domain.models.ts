@@ -175,6 +175,34 @@ export interface Recomendacion {
   detalle: string;
 }
 
+export interface AnalisisAudio {
+  snr_agente_db: number | null;
+  snr_cliente_db: number | null;
+}
+export interface AnalisisHabla {
+  agente_pct: number | null;
+  cliente_pct: number | null;
+  silencio_pct: number | null;
+  double_talk_pct: number | null;
+}
+export interface AnalisisTiempos {
+  cola_s: number | null;
+  espera_s: number | null;
+  hold_count: number | null;
+}
+export interface AnalisisRiesgos {
+  churn: number | null;
+  complaint: number | null;
+  escalation: number | null;
+  count: number;
+}
+export interface AnalisisCall {
+  audio: AnalisisAudio;
+  habla: AnalisisHabla;
+  tiempos: AnalisisTiempos;
+  riesgos: AnalisisRiesgos;
+}
+
 export interface DetalleLlamada {
   id: string;
   cliente: string;
@@ -208,6 +236,11 @@ export interface DetalleLlamada {
   observaciones: string[];
   coachingHighlights: CoachingHighlight[];
   recomendaciones: Recomendacion[];
+  /**
+   * Datos operativos/técnicos (SNR, distribución del habla, tiempos, riesgos).
+   * Opcional: el backend lo marca `null` si aún no hay pipeline poblado.
+   */
+  analisis?: AnalisisCall | null;
 }
 
 export interface Supervisor {

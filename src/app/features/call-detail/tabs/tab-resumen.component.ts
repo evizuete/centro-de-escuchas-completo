@@ -14,22 +14,18 @@ import { DataService } from '../../../core/services/data.service';
       <!-- Columna izquierda -->
       <div>
         <h2 class="section-title">Resumen ejecutivo</h2>
-        <p style="font-size: 14px; color: #334155; line-height: 1.6; margin-bottom: 18px;">
-          Teresa Dipolito, propietaria de L'Atelier dei Capelli en Nápoles, contacta para realizar su
-          primer pedido de Yodeyma. El agente gestionó la llamada de forma ejemplar: acogió calurosamente
-          a la nueva cliente, asesoró sobre los productos más vendidos, aplicó correctamente la política
-          de testers para pedidos superiores a €80 y facilitó material de marketing adicional. La llamada
-          finalizó con alta satisfacción y pedido confirmado.
-        </p>
+        @if (d().resumen) {
+          <p style="font-size: 14px; color: #334155; line-height: 1.6; margin-bottom: 18px; white-space: pre-wrap;">{{ d().resumen }}</p>
+        } @else {
+          <p style="font-size: 13px; color: #94a3b8; font-style: italic; margin-bottom: 18px;">Resumen no disponible.</p>
+        }
         <h3 class="section-subtitle">Datos clave</h3>
-        <ul class="bullet-list">
-          <li>Primer pedido: <b>€87,55 (4 perfumes)</b></li>
-          <li>Productos: Rosa Nera, Mediterráneo, Vanille Intense, Blue Ocean</li>
-          <li>Testers gratuitos incluidos (umbral €80 superado)</li>
-          <li>Pedido nº <b>ITA-2026-18847</b></li>
-          <li>Envío a: Via Caracciolo 45, 80121 Nápoles</li>
-          <li>Solicitud de material de marketing derivada a dpto. marketing</li>
-        </ul>
+        <div style="padding: 12px 14px; background: #f8fafc; border: 1px dashed #cbd5e1;
+                    border-radius: 8px; font-size: 12.5px; color: #64748b; line-height: 1.5;">
+          <b style="color: #475569;">Pendiente:</b> la extracción estructurada de datos clave
+          (importe, productos, dirección, pedido nº, etc.) no está disponible todavía.
+          Este bloque se activará cuando producto defina el formato.
+        </div>
       </div>
 
       <!-- Aside -->
@@ -44,7 +40,7 @@ import { DataService } from '../../../core/services/data.service';
             <span style="color: #94a3b8;">Agente</span>
             <button
               type="button"
-              (click)="openAgente.emit('cc_ita4')"
+              (click)="openAgente.emit(agentId())"
               style="background: transparent; border: none; padding: 0; cursor: pointer;
                      color: #1d4ed8; font-weight: 500; font-size: 12px; text-decoration: underline;
                      text-underline-offset: 2px; display: inline-flex; align-items: center; gap: 4px;
@@ -156,4 +152,12 @@ export class TabResumenComponent {
 
   tipoColor = computed<string>(() => this.data.getTipoColor(this.d().tipo));
   isNegative = computed<boolean>(() => this.d().sentimiento.toLowerCase().includes('neg'));
+  /**
+   * Id del agente para navegar al perfil. `interaccion.agente` suele venir
+   * como email ("cc_gbr5@yodeyma.com"); nos quedamos con la parte local.
+   */
+  agentId = computed<string>(() => {
+    const raw = this.d().interaccion.agente || '';
+    return raw.split('@')[0];
+  });
 }

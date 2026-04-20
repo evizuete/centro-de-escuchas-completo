@@ -29,9 +29,10 @@ interface NavItem {
       <nav class="sidebar__nav">
         @for (item of items; track item.path) {
           <a
-            [routerLink]="item.path"
-            routerLinkActive="sidebar__item--active"
-            class="sidebar__item"
+              [routerLink]="item.path"
+              routerLinkActive="sidebar__item--active"
+              [routerLinkActiveOptions]="{ exact: item.path === '/admin' }"
+              class="sidebar__item"
           >
             <app-icon [name]="item.icon" [size]="18" />
             <span>{{ item.label }}</span>
@@ -60,6 +61,7 @@ export class SidebarComponent {
     { path: '/llamadas', label: 'Llamadas', icon: 'phone' },
     { path: '/supervisores', label: 'Supervisores', icon: 'users' },
     { path: '/admin', label: 'Administración', icon: 'tweaks' },
+    { path: '/admin/pipeline-health', label: 'Salud del pipeline', icon: 'check' },
   ];
 
   logout(): void {
