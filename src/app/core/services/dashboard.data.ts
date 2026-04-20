@@ -1,0 +1,240 @@
+import { DashboardData } from '../models/domain.models';
+
+// Genera heatmap emocional con patrones (lunes mañana y viernes tarde con más tensión)
+const genHeatmap = (): number[][] =>
+  Array.from({ length: 7 }, (_, d) =>
+    Array.from({ length: 12 }, (_, h) => {
+      const base = 60 + Math.sin((d * 12 + h) / 4) * 10;
+      const lunes = d === 0 && h < 4 ? -18 : 0;
+      const viernes = d === 4 && h > 7 ? -22 : 0;
+      const mediaSem = d > 4 ? 8 : 0;
+      return Math.max(20, Math.min(95, Math.round(base + lunes + viernes + mediaSem + (Math.random() * 8 - 4))));
+    })
+  );
+
+export const MOCK_DASHBOARD: DashboardData = {
+  kpis: {
+    llamadas: { value: 47, delta: '+12%', spark: [22, 28, 24, 31, 27, 34, 38, 41, 39, 44, 42, 47] },
+    duracionMedia: { value: '08:16', cola: '34s' },
+    saludMedia: { value: 78, delta: 5 },
+    experienciaCliente: { value: 82, delta: 8 },
+    facturacion: { value: '€2.847', delta: '+€412' },
+    riesgosAltos: { value: 3, toReview: 3 },
+  },
+  sentiment: [
+    { label: 'Muy positivo', value: 17, color: '#16a34a' },
+    { label: 'Positivo', value: 50, color: '#22c55e' },
+    { label: 'Neutro', value: 17, color: '#94a3b8' },
+    { label: 'Neg. resuelto', value: 11, color: '#f97316' },
+    { label: 'Negativo', value: 5, color: '#dc2626' },
+  ],
+  topTemas: [
+    { tema: 'Pedidos nuevos', pct: 32, count: 15 },
+    { tema: 'Reclamaciones', pct: 28, count: 13 },
+    { tema: 'Devoluciones', pct: 19, count: 9 },
+    { tema: 'Seguimiento', pct: 14, count: 7 },
+    { tema: 'Info producto', pct: 7, count: 3 },
+  ],
+  distribucionTipos: [
+    {
+      tipo: 'Solicitud', pct: 42, count: 20, color: '#2563eb',
+      topSub: [
+        { sub: 'Añadir producto', n: 8 },
+        { sub: 'Solicitud información', n: 5 },
+        { sub: 'Aplicar descuento', n: 4 },
+        { sub: 'Envío material promocional', n: 3 },
+      ],
+    },
+    {
+      tipo: 'Incidencia', pct: 28, count: 13, color: '#ea580c',
+      topSub: [
+        { sub: 'Producto faltante', n: 4 },
+        { sub: 'Entrega retrasada', n: 3 },
+        { sub: 'Producto dañado', n: 3 },
+        { sub: 'Producto erróneo', n: 2 },
+        { sub: 'Sin stock', n: 1 },
+      ],
+    },
+    {
+      tipo: 'Reclamación', pct: 19, count: 9, color: '#dc2626',
+      topSub: [
+        { sub: 'Producto', n: 5 },
+        { sub: 'Servicio de transporte', n: 3 },
+        { sub: 'Servicio Call Center', n: 1 },
+      ],
+    },
+    {
+      tipo: 'Sugerencia', pct: 11, count: 5, color: '#16a34a',
+      topSub: [
+        { sub: 'Producto', n: 3 },
+        { sub: 'Genérica', n: 2 },
+      ],
+    },
+  ],
+  tendencias: {
+    score: [74, 76, 75, 78],
+    cx: [79, 78, 80, 82],
+    sentimiento: [68, 71, 73, 75],
+    volumen: [182, 201, 195, 228],
+  },
+  heatmapEmocional: genHeatmap(),
+  alertas: [
+    { nivel: 'ALTA', tipo: 'Operational', texto: 'Cliente amenaza con reporte formal por facturación', agente: 'cc_esp1', hace: '12 min' },
+    { nivel: 'ALTA', tipo: 'Churn risk', texto: 'Cliente Top-10 solicita cancelar contrato anual', agente: 'cc_ita4', hace: '34 min' },
+    { nivel: 'MEDIA', tipo: 'Quality', texto: '3 llamadas seguidas con score < 60 — cc_rou3', agente: 'cc_rou3', hace: '1h' },
+  ],
+  agentesCalidad: [
+    { id: 'cc_ita4', nombre: 'Giuliana Esposito', score: 95, dims: { saludo: 96, empatia: 92, eficiencia: 95, claridad: 93, producto: 96, cierre: 97 } },
+    { id: 'cc_esp2', nombre: 'Carlos Navarro', score: 78, dims: { saludo: 82, empatia: 75, eficiencia: 80, claridad: 78, producto: 74, cierre: 79 } },
+    { id: 'cc_ita14', nombre: 'Valentina Ricci', score: 68, dims: { saludo: 74, empatia: 62, eficiencia: 70, claridad: 68, producto: 66, cierre: 70 } },
+    { id: 'cc_rou3', nombre: 'Andrei Popescu', score: 54, dims: { saludo: 60, empatia: 48, eficiencia: 52, claridad: 58, producto: 55, cierre: 54 } },
+  ],
+  llamadas: [
+    {
+      id: '7BEC3F67', cliente: 'Teresa Dipolito', empresa: "L'Atelier dei Capelli", ciudad: 'Nápoles',
+      categoria: 'NUEVO PEDIDO', tipo: 'Solicitud', subcategoria: 'Añadir producto', marca: 'Yodeyma',
+      estado: 'A REVISAR', score: 92, cx: 95, agente: 92, sentimiento: 'Positivo',
+      duracion: '10:10', agenteId: 'cc_ita4', facturacion: 87.55, riesgos: 1, fecha: '2026-04-18T09:12',
+      resumen: "Nueva cliente (L'Atelier dei Capelli) realiza primer pedido de 4 perfumes por €87,55 con testers incluidos.",
+      no_leida: true, pinned: false, emoji_arc: [55, 62, 70, 78, 82, 88, 85, 90, 92],
+    },
+    {
+      id: 'A283C12D', cliente: 'Marco Bianchi', empresa: 'Farmacia Central', ciudad: 'Milán',
+      categoria: 'NUEVO PEDIDO', tipo: 'Solicitud', subcategoria: 'Solicitud información', marca: 'Yodeyma',
+      estado: 'EN REVISIÓN', score: 75, cx: 80, agente: 71, sentimiento: 'Positivo',
+      duracion: '6:12', agenteId: 'cc_esp2', facturacion: 22.50, riesgos: 1, fecha: '2026-04-18T10:04',
+      resumen: 'Cliente solicita muestra de línea Elegance para farmacia con potencial comercial.',
+      no_leida: true, pinned: false, emoji_arc: [50, 55, 60, 65, 70, 72, 75, 78, 75],
+    },
+    {
+      id: '5138IE20', cliente: 'Adriana Leonfort', empresa: 'Parfumerie Leonfort', ciudad: 'Barcelona',
+      categoria: 'RECLAMACIÓN', tipo: 'Incidencia', subcategoria: 'Producto faltante',
+      subcategoriaExtra: 'Producto dañado', marca: 'Yodeyma',
+      estado: 'REVISADO', score: 68, cx: 58, agente: 79, sentimiento: 'Negativo resuelto',
+      duracion: '9:46', agenteId: 'cc_ita14', facturacion: 45.00, riesgos: 3, fecha: '2026-04-18T10:55',
+      resumen: 'Reclamación por productos faltantes y expositor roto. Resolución con reenvío urgente + venta adicional expositor.',
+      no_leida: false, pinned: true, emoji_arc: [40, 32, 28, 30, 45, 58, 65, 70, 72],
+    },
+    {
+      id: 'UB343F4A', cliente: 'Fabiola Moretti', empresa: 'Soffio Vitale 2', ciudad: 'Roma',
+      categoria: 'PEDIDO RECURRENTE', tipo: 'Solicitud', subcategoria: 'Añadir producto', marca: 'Yodeyma',
+      estado: 'NO APLICA', score: 87, cx: 88, agente: 90, sentimiento: 'Positivo',
+      duracion: '4:20', agenteId: 'cc_ita4', facturacion: 156.80, riesgos: 0, fecha: '2026-04-18T11:20',
+      resumen: 'Pedido recurrente mensual de 12 unidades. Cliente consolidado desde 2022.',
+      no_leida: false, pinned: false, emoji_arc: [75, 78, 82, 85, 86, 88, 87, 88, 87],
+    },
+    {
+      id: '1ED4F671', cliente: 'Desconocido', empresa: '—', ciudad: '—',
+      categoria: 'VENTAS', tipo: 'Reclamación', subcategoria: 'Servicio Call Center', marca: '—',
+      estado: 'A REVISAR', score: 34, cx: 28, agente: 42, sentimiento: 'Negativo',
+      duracion: '2:47', agenteId: 'cc_rou3', facturacion: 0, riesgos: 3, fecha: '2026-04-18T11:48',
+      resumen: 'Prospección fría fallida. Cliente colgó tras 2:47 por tono inadecuado del agente.',
+      no_leida: true, pinned: false, emoji_arc: [60, 55, 45, 38, 32, 28, 25, 28, 32],
+    },
+    {
+      id: '9CC2B71F', cliente: 'Lorenzo Magno', empresa: 'Profumeria Magno', ciudad: 'Florencia',
+      categoria: 'INFO PRODUCTO', tipo: 'Solicitud', subcategoria: 'Solicitud información', marca: 'Yodeyma',
+      estado: 'REVISADO', score: 84, cx: 86, agente: 82, sentimiento: 'Positivo',
+      duracion: '7:03', agenteId: 'cc_ita4', facturacion: 0, riesgos: 0, fecha: '2026-04-18T12:15',
+      resumen: 'Consulta técnica sobre notas de salida de línea Mediterráneo para cliente VIP.',
+      no_leida: false, pinned: false, emoji_arc: [70, 75, 80, 82, 84, 85, 86, 84, 83],
+    },
+    {
+      id: '3AA1B208', cliente: 'Elena Vásquez', empresa: 'Essenza Boutique', ciudad: 'Madrid',
+      categoria: 'DEVOLUCIÓN', tipo: 'Incidencia', subcategoria: 'Producto erróneo', marca: 'Verset',
+      estado: 'A REVISAR', score: 58, cx: 48, agente: 68, sentimiento: 'Negativo',
+      duracion: '11:34', agenteId: 'cc_esp2', facturacion: -62.40, riesgos: 2, fecha: '2026-04-18T12:42',
+      resumen: 'Devolución de 3 unidades por diferencia de fragancia respecto al muestrario. Posible error logístico.',
+      no_leida: true, pinned: false, emoji_arc: [55, 50, 42, 38, 45, 52, 58, 62, 58],
+    },
+    {
+      id: 'BB29D7CE', cliente: 'Katya Ionescu', empresa: 'Cosmetica BV', ciudad: 'Bucarest',
+      categoria: 'SEGUIMIENTO', tipo: 'Incidencia', subcategoria: 'Entrega retrasada', marca: 'Kenfay',
+      estado: 'EN REVISIÓN', score: 72, cx: 74, agente: 70, sentimiento: 'Neutro',
+      duracion: '5:28', agenteId: 'cc_rou3', facturacion: 34.90, riesgos: 0, fecha: '2026-04-18T13:10',
+      resumen: 'Seguimiento de pedido pendiente. Agente ofrece compensación por retraso (2 testers adicionales).',
+      no_leida: false, pinned: false, emoji_arc: [62, 65, 68, 70, 72, 74, 73, 72, 71],
+    },
+  ],
+  detalleLlamada: {
+    id: '7BEC3F67',
+    cliente: 'Teresa Dipolito',
+    empresa: "L'Atelier dei Capelli",
+    ciudad: 'Nápoles, Italia',
+    categoria: 'NUEVO PEDIDO',
+    tipo: 'Solicitud',
+    subcategoria: 'Añadir producto',
+    marca: 'Yodeyma',
+    resumen: "Nueva cliente (L'Atelier dei Capelli) realiza primer pedido de 4 perfumes por €87,55 con testers incluidos.",
+    score: 92, cx: 95, complejidad: 28, agente: 92,
+    interaccion: {
+      canal: 'inbound',
+      agente: 'cc_ita4@yodeyma.com',
+      inicio: '2026-04-18 09:12',
+      duracion: '10:10',
+      espera: '42s',
+    },
+    productos: [
+      { nombre: 'Rosa Nera', marca: 'Yodeyma', formato: '100ml', categoria: 'perfumería' },
+      { nombre: 'Mediterráneo', marca: 'Yodeyma', formato: '100ml', categoria: 'perfumería' },
+      { nombre: 'Vanille Intense', marca: 'Yodeyma', formato: '100ml', categoria: 'perfumería' },
+      { nombre: 'Blue Ocean', marca: 'Yodeyma', formato: '100ml', categoria: 'perfumería' },
+    ],
+    sentimiento: 'Positivo',
+    tags: ['satisfacción', 'interés', 'confianza', 'entusiasmo'],
+    incidencias: [],
+    heatmapLlamada: [
+      { t: '00:00', emocion: 'neutral', intensidad: 55, evento: 'Saludo inicial' },
+      { t: '01:00', emocion: 'curiosidad', intensidad: 68, evento: 'Primer contacto' },
+      { t: '02:30', emocion: 'interés', intensidad: 78, evento: 'Presentación productos' },
+      { t: '04:00', emocion: 'alegría', intensidad: 85, evento: 'Decisión compra' },
+      { t: '05:30', emocion: 'satisfacción', intensidad: 88, evento: 'Confirmación pedido' },
+      { t: '07:00', emocion: 'entusiasmo', intensidad: 92, evento: 'Oferta testers' },
+      { t: '08:30', emocion: 'confianza', intensidad: 90, evento: 'Solicitud marketing' },
+      { t: '10:00', emocion: 'gratitud', intensidad: 88, evento: 'Cierre' },
+    ],
+    heatmapAgente: [
+      { t: '00:00', emocion: 'profesional', intensidad: 70, evento: 'Saludo protocolario' },
+      { t: '01:00', emocion: 'cálido', intensidad: 78, evento: 'Bienvenida empática' },
+      { t: '02:30', emocion: 'confiado', intensidad: 82, evento: 'Presenta catálogo' },
+      { t: '04:00', emocion: 'seguro', intensidad: 85, evento: 'Cierre comercial' },
+      { t: '05:30', emocion: 'entusiasta', intensidad: 88, evento: 'Upsell testers' },
+      { t: '07:00', emocion: 'proactivo', intensidad: 86, evento: 'Aclara política' },
+      { t: '08:30', emocion: 'cauto', intensidad: 72, evento: 'Deriva a marketing' },
+      { t: '10:00', emocion: 'cordial', intensidad: 84, evento: 'Cierre fidelizador' },
+    ],
+    momentos: [
+      { t: '00:08', tipo: 'Inicio', actor: 'Cliente', prioridad: 'ALTA', texto: 'Cliente se identifica como nuevo cliente y solicita primer pedido' },
+      { t: '01:36', tipo: 'Pedido', actor: 'Cliente', prioridad: 'ALTA', texto: 'Confirmación de pedido de 4 perfumes por €87,55' },
+      { t: '01:58', tipo: 'Oportunidad', actor: 'Agente', prioridad: 'MEDIA', texto: 'Agente ofrece testers gratuitos al superar el umbral de €80' },
+      { t: '03:16', tipo: 'Marketing', actor: 'Cliente', prioridad: 'MEDIA', texto: 'Cliente solicita material de marketing para el salón' },
+      { t: '04:09', tipo: 'Cierre', actor: 'Cliente', prioridad: 'ALTA', texto: 'Cliente expresa satisfacción y fidelización hacia la marca' },
+    ],
+    transcripcion: [
+      { actor: 'AGENTE', ini: '00:00', fin: '00:07', sentimiento: 'neutral', es: 'Buenos días, Yodeyma Italia, soy Marco, ¿en qué puedo ayudarle?', orig: 'Buongiorno, Yodeyma Italia, sono Marco, come posso aiutarla?', ppm: 148, hz: 145, conf: 97 },
+      { actor: 'CLIENTE', ini: '00:08', fin: '00:22', sentimiento: 'curious', es: "Buenos días, soy Teresa Dipolito, llamo desde L'Atelier dei Capelli de Nápoles. Me gustaría hacer mi primer pedido de sus perfumes para el salón.", orig: "Buongiorno, sono Teresa Dipolito, chiamo da L'Atelier dei Capelli di Napoli. Vorrei fare il mio primo ordine dei vostri profumi per il salone.", ppm: 132, hz: 195, conf: 95 },
+      { actor: 'AGENTE', ini: '00:23', fin: '00:38', sentimiento: 'warm', es: '¡Bienvenida, Teresa! Es un placer. Le guío paso a paso. ¿Ha tenido oportunidad de ver nuestro catálogo online?', orig: 'Benvenuta, Teresa! È un piacere. La guido passo per passo. Ha avuto modo di vedere il nostro catalogo online?', ppm: 140, hz: 148, conf: 98 },
+      { actor: 'CLIENTE', ini: '00:39', fin: '01:05', sentimiento: 'interested', es: 'Sí, he visto varias líneas. Me interesan Rosa Nera, Mediterráneo, Vanille Intense y Blue Ocean. Quería saber si puedo pedir una unidad de cada uno.', orig: 'Sì, ho visto varie linee. Mi interessano Rosa Nera, Mediterraneo, Vanille Intense e Blue Ocean. Volevo sapere se posso ordinare una unità di ognuno.', ppm: 130, hz: 190, conf: 96 },
+      { actor: 'AGENTE', ini: '01:06', fin: '01:36', sentimiento: 'confident', es: 'Por supuesto. Esos cuatro suman €87,55 con IVA incluido. Y al superar €80, le puedo incluir testers gratuitos para que sus clientes puedan probar antes de comprar. ¿Le interesa?', orig: "Certamente. Questi quattro sono €87,55 IVA inclusa. E superando €80, posso includere tester gratuiti per i suoi clienti. Le interessa?", ppm: 145, hz: 147, conf: 97 },
+      { actor: 'CLIENTE', ini: '01:37', fin: '01:58', sentimiento: 'happy', es: '¡Sí, perfecto! Me encanta la idea. Confirmo el pedido entonces.', orig: "Sì, perfetto! Mi piace molto l'idea. Confermo l'ordine allora.", ppm: 128, hz: 205, conf: 98 },
+    ],
+    calidadDims: { saludo: 95, empatia: 88, eficiencia: 92, claridad: 90, conocimiento: 94, cierre: 96 },
+    observaciones: [
+      'Saludo profesional y acogedor desde el inicio',
+      'Verificó disponibilidad de stock en tiempo real correctamente',
+      'Aplicó correctamente la política de testers automáticamente',
+      'Derivó correctamente la solicitud de marketing sin comprometerse en exceso',
+      'Cierre emocional muy positivo que refuerza la fidelización',
+    ],
+    coachingHighlights: [
+      { t: '01:06', titulo: 'Upsell textbook', descripcion: 'Perfecta aplicación de la política de testers al detectar umbral.', tipo: 'positivo' },
+      { t: '03:16', titulo: 'Oportunidad perdida', descripcion: 'No captó la apertura del cliente para ofrecer programa de afiliados.', tipo: 'mejora' },
+      { t: '04:09', titulo: 'Cierre emocional', descripcion: 'Tono cálido que refuerza fidelización. Replicable.', tipo: 'positivo' },
+    ],
+    recomendaciones: [
+      { nivel: 'ALTA', tipo: 'Seguimiento', titulo: 'Asignar seguimiento desde dpto. marketing para enviar material personalizado a Teresa Dipolito', detalle: 'Cliente mostró interés explícito en material de marca. El cierre de este ciclo refuerza la fidelización del nuevo cliente.' },
+      { nivel: 'MEDIA', tipo: 'Fidelización', titulo: 'Incluir a Teresa Dipolito en programa de cliente frecuente y enviar oferta de segundo pedido a los 30 días', detalle: 'Perfil de comprador profesional con alta probabilidad de recompra recurrente.' },
+      { nivel: 'BAJA', tipo: 'Proceso', titulo: 'Estandarizar la oferta de material de marketing para nuevos clientes como parte del proceso de onboarding', detalle: 'Actualmente depende de la iniciativa del cliente solicitar el material. Proactivamente puede aumentar el valor percibido.' },
+    ],
+  },
+};
