@@ -25,8 +25,10 @@ export class DataService {
     return this.dashboard().llamadas.find((l) => l.id === id);
   }
 
-  getDetalleLlamada(_id: string): DetalleLlamada {
+  getDetalleLlamada(_id: string): DetalleLlamada | null {
     // En mock solo hay un detalle completo. Se devuelve independientemente del id.
+    // Cuando el dashboard venga del backend, detalleLlamada llega como null y
+    // el detalle se pide por separado con /api/calls/{id}.
     return this.dashboard().detalleLlamada;
   }
 

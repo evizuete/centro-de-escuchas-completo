@@ -1,8 +1,9 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
-import { DataService } from '../../../core/services/data.service';
-import { Agente, Dims } from '../../../core/models/domain.models';
+import { forkJoin } from 'rxjs';
+import { SupervisorsApiService } from '../../../core/services/supervisors-api.service';
+import { Agente, Dims, Supervisor } from '../../../core/models/domain.models';
 import { IconComponent } from '../../../shared/components/icon.component';
 import { ScoreBadgeComponent } from '../../../shared/components/score-badge.component';
 import { SparklineComponent } from '../../../shared/components/sparkline.component';
@@ -23,6 +24,19 @@ interface AlertaItem { tipo: string; agente: Agente; }
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
+    @if (loading()) {
+      <div style="padding: 40px; text-align: center; color: #64748b;">Cargando supervisor…</div>
+    }
+
+    @if (error()) {
+      <div style="padding: 40px; text-align: center; color: #dc2626;">
+        {{ error() }}
+        <div style="margin-top: 12px;">
+          <button type="button" class="btn btn--ghost" (click)="backToList()">Volver</button>
+        </div>
+      </div>
+    }
+
     @if (s(); as sup) {
       <div class="page">
         <!-- Breadcrumbs -->
@@ -34,9 +48,17 @@ interface AlertaItem { tipo: string; agente: Agente; }
 
         <!-- Header -->
         <div class="card" style="padding: 22px; margin-bottom: 18px; display: flex; align-items: flex-start; gap: 20px;">
-          <img [src]="sup.foto" [alt]="sup.nombre"
-               style="width: 86px; height: 86px; border-radius: 50%; object-fit: cover;
-                      border: 3px solid #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.1);" />
+          @if (sup.foto) {
+            <img [src]="sup.foto" [alt]="sup.nombre"
+                 style="width: 86px; height: 86px; border-radius: 50%; object-fit: cover;
+                        border: 3px solid #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.1);" />
+          } @else {
+            <div style="width: 86px; height: 86px; border-radius: 50%; background: #e2e8f0; color: #475569;
+                        display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 28px;
+                        border: 3px solid #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+              {{ initials(sup.nombre) }}
+            </div>
+          }
           <div style="flex: 1;">
             <h1 style="margin: 0; font-size: 26px; font-weight: 700; color: #0f172a; letter-spacing: -0.3px;">{{ sup.nombre }}</h1>
             <div style="font-size: 13px; color: #64748b; margin-top: 4px;">
@@ -57,8 +79,11 @@ interface AlertaItem { tipo: string; agente: Agente; }
               <div style="flex: 1; font-size: 12px; color: #1e3a8a; line-height: 1.5;">
                 <b>{{ firstName() }}</b> lidera un equipo de {{ agentes().length }} agentes con score medio
                 <b>{{ sup.scoreMedio }}</b>{{ sup.delta >= 0 ? ' y tendencia positiva (+' + sup.delta + 'pt este mes)' : ' con caída de ' + sup.delta + 'pt este mes' }}.
-                Destaca por su gestión en <b>{{ sup.topTemas[0].tema.toLowerCase() }}</b>
-                ({{ sup.topTemas[0].pct }}% del volumen) y su equipo rinde especialmente bien en
+                @if (sup.topTemas.length > 0) {
+                  Destaca por su gestión en <b>{{ sup.topTemas[0].tema.toLowerCase() }}</b>
+                  ({{ sup.topTemas[0].pct }}% del volumen)
+                }
+                y su equipo rinde especialmente bien en
                 <b>{{ bestDim().k }}</b> ({{ bestDim().v }}pts), con margen de mejora en
                 <b>{{ worstDim().k }}</b> ({{ worstDim().v }}pts).
                 {{ sup.alertasAbiertas > 0
@@ -135,16 +160,28 @@ interface AlertaItem { tipo: string; agente: Agente; }
                     (mouseenter)="hoverOn($event)" (mouseleave)="hoverOff($event)"
                   >
                     <td style="padding: 12px; display: flex; align-items: center; gap: 10px;">
-                      <img [src]="a.foto" [alt]="a.nombre" style="width: 30px; height: 30px; border-radius: 50%;" />
+                      @if (a.foto) {
+                        <img [src]="a.foto" [alt]="a.nombre" style="width: 30px; height: 30px; border-radius: 50%;" />
+                      } @else {
+                        <div style="width: 30px; height: 30px; border-radius: 50%; background: #e2e8f0; color: #475569; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 11px;">{{ initials(a.nombre) }}</div>
+                      }
                       <div>
                         <div style="font-weight: 600; color: #0f172a;">{{ a.nombre }}</div>
-                        <div style="font-size: 10.5px; color: #94a3b8;">{{ a.idiomas.join(' · ') }} · {{ a.antiguedad }}</div>
+                        <div style="font-size: 10.5px; color: #94a3b8;">
+                          @if (a.idiomas && a.idiomas.length > 0) { {{ a.idiomas.join(' · ') }} }
+                          @if (a.idiomas && a.idiomas.length > 0 && a.antiguedad) { · }
+                          {{ a.antiguedad }}
+                        </div>
                       </div>
                     </td>
                     <td style="padding: 12px; text-align: center;">
-                      <app-tag [variant]="a.rol === 'Senior' ? 'blue' : a.rol === 'Middle' ? 'gray' : 'amber'">{{ a.rol }}</app-tag>
+                      @if (a.rol) {
+                        <app-tag [variant]="a.rol === 'Senior' ? 'blue' : a.rol === 'Middle' ? 'gray' : 'amber'">{{ a.rol }}</app-tag>
+                      } @else {
+                        <span style="color: #cbd5e1;">—</span>
+                      }
                     </td>
-                    <td style="padding: 12px; text-align: center; color: #475569;">{{ a.turno }}</td>
+                    <td style="padding: 12px; text-align: center; color: #475569;">{{ a.turno ?? '—' }}</td>
                     <td style="padding: 12px; text-align: center; font-feature-settings: 'tnum';">{{ a.nLlamadas }}</td>
                     <td style="padding: 12px; text-align: center;">
                       <div style="display: inline-flex;">
@@ -153,13 +190,23 @@ interface AlertaItem { tipo: string; agente: Agente; }
                     </td>
                     <td style="padding: 12px; text-align: center; font-weight: 600; font-feature-settings: 'tnum';">{{ a.cx }}</td>
                     <td style="padding: 12px; text-align: center;">
-                      <div style="display: inline-flex;">
-                        <app-sparkline [data]="a.tendencia" [width]="84" [height]="20" color="#3b82f6" />
-                      </div>
+                      @if (a.tendencia && a.tendencia.length > 0) {
+                        <div style="display: inline-flex;">
+                          <app-sparkline [data]="a.tendencia" [width]="84" [height]="20" color="#3b82f6" />
+                        </div>
+                      } @else {
+                        <span style="color: #cbd5e1; font-size: 11px;">—</span>
+                      }
                     </td>
                     <td style="padding: 12px; text-align: center; font-weight: 700; font-feature-settings: 'tnum';"
                         [style.color]="a.delta >= 0 ? '#15803d' : '#dc2626'">{{ a.delta >= 0 ? '+' : '' }}{{ a.delta }}pt</td>
-                    <td style="padding: 12px; text-align: center; font-feature-settings: 'tnum'; color: #475569;">€{{ a.facturacion.toLocaleString('es') }}</td>
+                    <td style="padding: 12px; text-align: center; font-feature-settings: 'tnum'; color: #475569;">
+                      @if (a.facturacion != null) {
+                        €{{ a.facturacion.toLocaleString('es') }}
+                      } @else {
+                        <span style="color: #cbd5e1;">—</span>
+                      }
+                    </td>
                   </tr>
                 }
               </tbody>
@@ -199,12 +246,16 @@ interface AlertaItem { tipo: string; agente: Agente; }
               </div>
               <app-tag [variant]="sup.delta >= 0 ? 'green' : 'red'">{{ sup.delta >= 0 ? '↑ +' : '↓ ' }}{{ sup.delta }}pt</app-tag>
             </div>
-            <app-sparkline [data]="sup.tendencia" [width]="280" [height]="120" color="#3b82f6" [showDots]="true" />
-            <div style="margin-top: 14px; padding: 10px; background: #f8fafc; border-radius: 6px; font-size: 12px; color: #475569; line-height: 1.5;">
-              <b>Semana actual:</b> {{ sup.tendencia[sup.tendencia.length - 1] }} pts<br/>
-              <b>Mejor semana:</b> {{ bestWeek() }} pts<br/>
-              <b>Peor semana:</b> {{ worstWeek() }} pts
-            </div>
+            @if (sup.tendencia && sup.tendencia.length > 0) {
+              <app-sparkline [data]="sup.tendencia" [width]="280" [height]="120" color="#3b82f6" [showDots]="true" />
+              <div style="margin-top: 14px; padding: 10px; background: #f8fafc; border-radius: 6px; font-size: 12px; color: #475569; line-height: 1.5;">
+                <b>Semana actual:</b> {{ sup.tendencia[sup.tendencia.length - 1] }} pts<br/>
+                <b>Mejor semana:</b> {{ bestWeek() }} pts<br/>
+                <b>Peor semana:</b> {{ worstWeek() }} pts
+              </div>
+            } @else {
+              <div style="padding: 30px; text-align: center; color: #94a3b8; font-size: 12px;">Sin datos de tendencia disponibles.</div>
+            }
           </div>
 
           <div class="card">
@@ -247,7 +298,11 @@ interface AlertaItem { tipo: string; agente: Agente; }
             <div style="display: flex; flex-direction: column; gap: 10px;">
               @for (c of coachingList(); track $index) {
                 <div style="display: flex; gap: 10px; padding: 10px; background: #fef3c7; border-radius: 6px; border: 1px solid #fcd34d;">
-                  <img [src]="c.agente.foto" style="width: 32px; height: 32px; border-radius: 50%;" />
+                  @if (c.agente.foto) {
+                    <img [src]="c.agente.foto" style="width: 32px; height: 32px; border-radius: 50%;" />
+                  } @else {
+                    <div style="width: 32px; height: 32px; border-radius: 50%; background: #fef3c7; color: #78350f; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 11px; border: 1px solid #fcd34d;">{{ initials(c.agente.nombre) }}</div>
+                  }
                   <div style="flex: 1;">
                     <div style="font-weight: 600; font-size: 13px; color: #0f172a;">{{ c.titulo }}</div>
                     <div style="font-size: 11px; color: #78350f; margin-top: 2px;">Para <b>{{ c.agente.nombre }}</b> · 3 highlights agrupados</div>
@@ -292,52 +347,64 @@ interface AlertaItem { tipo: string; agente: Agente; }
   `,
 })
 export class SupervisorDetalleComponent {
-  private data = inject(DataService);
+  private api = inject(SupervisorsApiService);
   private router = inject(Router);
 
   id = input<string>('');
 
   readonly colorsBar = ['#3b82f6', '#8b5cf6', '#f59e0b', '#10b981', '#64748b'];
 
-  s = computed(() => this.data.getSupervisor(this.id()));
-  agentes = computed<Agente[]>(() => this.data.getAgentesDeSupervisor(this.id()));
-  firstName = computed<string>(() => this.s()?.nombre.split(' ')[0] ?? '');
+  readonly s = signal<Supervisor | null>(null);
+  readonly agentes = signal<Agente[]>([]);
+  /**
+   * Estadísticas del global de agentes para el radar (diff dim vs media).
+   * Se pide sin filtro de supervisor porque sirve de benchmark.
+   */
+  private agentesGlobales = signal<Agente[]>([]);
+  readonly loading = signal<boolean>(true);
+  readonly error = signal<string | null>(null);
 
-  // Agentes ordenados por score desc
-  agentesSorted = computed<Agente[]>(() =>
+  readonly firstName = computed<string>(() => this.s()?.nombre.split(' ')[0] ?? '');
+
+  readonly agentesSorted = computed<Agente[]>(() =>
     [...this.agentes()].sort((a, b) => b.score - a.score)
   );
 
-  bestWeek = computed<number>(() => Math.max(...(this.s()?.tendencia ?? [0])));
-  worstWeek = computed<number>(() => Math.min(...(this.s()?.tendencia ?? [0])));
+  readonly bestWeek = computed<number>(() => {
+    const t = this.s()?.tendencia;
+    return t && t.length > 0 ? Math.max(...t) : 0;
+  });
+  readonly worstWeek = computed<number>(() => {
+    const t = this.s()?.tendencia;
+    return t && t.length > 0 ? Math.min(...t) : 0;
+  });
 
-  // Mejor / peor dimensión
-  bestDim = computed<{ k: string; v: number }>(() => {
+  readonly bestDim = computed<{ k: string; v: number }>(() => {
     const sup = this.s();
-    if (!sup) return { k: '', v: 0 };
+    if (!sup) return { k: '—', v: 0 };
     const entries = Object.entries(sup.dims).sort((a, b) => (b[1] as number) - (a[1] as number));
-    return { k: entries[0][0], v: entries[0][1] as number };
+    const [k, v] = entries[0];
+    return { k, v: v as number };
   });
-  worstDim = computed<{ k: string; v: number }>(() => {
+  readonly worstDim = computed<{ k: string; v: number }>(() => {
     const sup = this.s();
-    if (!sup) return { k: '', v: 0 };
+    if (!sup) return { k: '—', v: 0 };
     const entries = Object.entries(sup.dims).sort((a, b) => (a[1] as number) - (b[1] as number));
-    return { k: entries[0][0], v: entries[0][1] as number };
+    const [k, v] = entries[0];
+    return { k, v: v as number };
   });
 
-  // Diferencia por dimensión vs promedio global
-  dimDiff = computed(() => {
+  readonly dimDiff = computed(() => {
     const sup = this.s();
-    if (!sup) return [];
-    const all = this.data.agentes();
+    const all = this.agentesGlobales();
+    if (!sup || !all.length) return [];
     return DIMS.map((k) => {
       const avg = Math.round(all.reduce((a, x) => a + x.dims[k], 0) / all.length);
       return { k: k as string, diff: sup.dims[k] - avg };
     });
   });
 
-  // Coaching pendiente (simulado)
-  coachingList = computed<CoachItem[]>(() => {
+  readonly coachingList = computed<CoachItem[]>(() => {
     const sup = this.s();
     const ags = this.agentes();
     if (!sup || !ags.length) return [];
@@ -349,8 +416,7 @@ export class SupervisorDetalleComponent {
     }));
   });
 
-  // Alertas (simuladas)
-  alertasList = computed<AlertaItem[]>(() => {
+  readonly alertasList = computed<AlertaItem[]>(() => {
     const sup = this.s();
     const ags = this.agentes();
     if (!sup || !ags.length) return [];
@@ -360,6 +426,47 @@ export class SupervisorDetalleComponent {
       agente: ags[i % ags.length],
     }));
   });
+
+  constructor() {
+    // Carga cuando cambia el id de la ruta.
+    effect(() => {
+      const supId = this.id();
+      if (!supId) {
+        this.s.set(null);
+        this.agentes.set([]);
+        return;
+      }
+      this.loading.set(true);
+      this.error.set(null);
+      forkJoin({
+        sup: this.api.getSupervisor(supId),
+        ags: this.api.listAgents({ supervisor_id: supId }),
+        all: this.api.listAgents(),
+      }).subscribe({
+        next: ({ sup, ags, all }) => {
+          this.s.set(sup);
+          this.agentes.set(ags);
+          this.agentesGlobales.set(all);
+          this.loading.set(false);
+        },
+        error: (err) => {
+          this.loading.set(false);
+          const status = err?.status;
+          if (status === 404) {
+            this.error.set(`Supervisor ${supId} no encontrado`);
+          } else {
+            this.error.set('No se pudo cargar el supervisor');
+          }
+          console.error('[supervisor-detalle] error', err);
+        },
+      });
+    });
+  }
+
+  initials(nombre: string): string {
+    const parts = nombre.trim().split(/\s+/);
+    return ((parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '')).toUpperCase() || '?';
+  }
 
   backToList(): void { this.router.navigate(['/supervisores']); }
   openAgente(id: string): void { this.router.navigate(['/agentes', id]); }

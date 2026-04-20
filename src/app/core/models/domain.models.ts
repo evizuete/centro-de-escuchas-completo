@@ -213,7 +213,11 @@ export interface DetalleLlamada {
 export interface Supervisor {
   id: string;
   nombre: string;
-  foto: string;
+  /**
+   * URL del avatar. El backend puede devolverlo null (supervisors.avatar_url
+   * es nullable), por eso es opcional. En UI usar fallback con iniciales.
+   */
+  foto?: string;
   pais: string;
   equipo: string;
   antiguedad: string;
@@ -234,23 +238,41 @@ export interface Supervisor {
 export interface Agente {
   id: string;
   nombre: string;
-  foto: string;
   supervisorId: string;
   pais: string;
-  rol: 'Senior' | 'Middle' | 'Junior';
-  antiguedad: string;
-  turno: string;
   nLlamadas: number;
   score: number;
   cx: number;
   delta: number;
-  facturacion: number;
-  tendencia: number[];
   dims: Dims;
-  firmaEmocional: number[];
-  resolucionMedia: string;
-  topTemas: string[];
-  idiomas: string[];
+
+  // --- Opcionales: campos que el backend suministra cuando hay datos ------
+  /** agents.avatar_url (nullable en BD). */
+  foto?: string;
+  /** Derivado de agents.joined_date. Texto tipo "3 años". */
+  antiguedad?: string;
+  /**
+   * Derivado de joined_date (<2 Junior, 2-5 Middle, >5 Senior). Si no hay
+   * fecha de alta el backend cae a agents.role (string libre), por eso
+   * aquí el tipo es string y no un enum cerrado.
+   */
+  rol?: string;
+  /** agents.languages (JSON array). */
+  idiomas?: string[];
+  /** SUM(calls.facturacion_eur) 30d. */
+  facturacion?: number;
+  /** agent_insights.tendencia_30d. Array de scores (0-100). */
+  tendencia?: number[];
+  /** Nombres de las categorías más frecuentes del agente en 30d. */
+  topTemas?: string[];
+  /** AVG(calls.duration_seconds) formateado "mm:ss". */
+  resolucionMedia?: string;
+
+  // --- Sin fuente en BD todavía (pendientes de decisión de producto) ------
+  /** TODO: requiere master data de turnos (p.ej. tabla agent_shifts). */
+  turno?: string;
+  /** TODO: requiere job analítico sobre transcripciones. */
+  firmaEmocional?: number[];
 }
 
 export interface AgenteFortaleza {
@@ -276,12 +298,40 @@ export interface AgenteCoaching {
   aplicado: boolean;
   mejora: string | null;
 }
+/**
+ * Insights del agente para la página de perfil.
+ *
+ * Los campos `agenteId`, `fortalezas`, `coachingPendientes`, `tendencia`,
+ * `topTemas` y `ranking` son los que actualmente devuelve el backend
+ * (GET /api/agents/{id}/insights).
+ *
+ * Los campos `mejoras`, `momentosBrillantes`, `patronesRiesgo` y
+ * `coachingRecibido` son los que el diseño UI pide pero **no tienen
+ * fuente en BD todavía**. Los templates deben protegerlos con `@if` o
+ * fallback a array vacío.
+ */
 export interface AgenteInsights {
-  fortalezas: AgenteFortaleza[];
-  mejoras: AgenteFortaleza[];
-  momentosBrillantes: AgenteMomentoBrillante[];
-  patronesRiesgo: AgentePatronRiesgo[];
-  coachingRecibido: AgenteCoaching[];
+  agenteId?: string;
+  /**
+   * En el backend actual es `string[]` (frases descriptivas).
+   * TS lo deja flexible para soportar ambas formas mientras se cierra
+   * el formato con producto.
+   */
+  fortalezas?: AgenteFortaleza[] | string[];
+  coachingPendientes?: unknown[];
+  tendencia?: number[];
+  topTemas?: { tema: string; pct: number }[] | string[];
+  ranking?: { equipo?: number; rol?: number; global?: number };
+
+  // --- Pendientes de decisión de producto ---------------------------------
+  /** TODO: formato pendiente — ¿es lo contrario de fortalezas? */
+  mejoras?: AgenteFortaleza[];
+  /** TODO: derivable de call_moments con criterio por definir. */
+  momentosBrillantes?: AgenteMomentoBrillante[];
+  /** TODO: posible uso de agent_insights.rasgos. */
+  patronesRiesgo?: AgentePatronRiesgo[];
+  /** TODO: requiere tabla nueva agent_coaching_sessions. */
+  coachingRecibido?: AgenteCoaching[];
 }
 
 export interface DashboardData {
@@ -294,5 +344,10 @@ export interface DashboardData {
   alertas: Alerta[];
   agentesCalidad: AgenteCalidad[];
   llamadas: Llamada[];
-  detalleLlamada: DetalleLlamada;
+  /**
+   * El endpoint /api/dashboard del backend devuelve siempre null aquí;
+   * el detalle se obtiene por separado con /api/calls/{id}. El mock lo
+   * sigue rellenando para no romper la ruta de detalle mientras se migra.
+   */
+  detalleLlamada: DetalleLlamada | null;
 }

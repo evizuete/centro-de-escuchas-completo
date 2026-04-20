@@ -1,7 +1,7 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
-import { DataService } from '../../core/services/data.service';
+import { CallsApiService } from '../../core/services/calls-api.service';
 import { Llamada, TipoCaso } from '../../core/models/domain.models';
 import { IconComponent, IconName } from '../../shared/components/icon.component';
 import { TagComponent } from '../../shared/components/tag.component';
@@ -243,16 +243,26 @@ interface ViewOption { mode: ViewMode; icon: IconName; }
     </div>
   `,
 })
-export class LlamadasPageComponent {
-  private data = inject(DataService);
+export class LlamadasPageComponent implements OnInit {
+  private api = inject(CallsApiService);
   private router = inject(Router);
+
+  /**
+   * Lista cruda de llamadas recibida del backend. Los filtros de UI
+   * (tipo, estado, query) se siguen aplicando en cliente sobre esta
+   * lista (ver `filtered`). Cuando el volumen lo requiera, se pueden
+   * mover esos filtros al query-param del endpoint.
+   */
+  readonly llamadas = signal<Llamada[]>([]);
+  readonly loading = signal<boolean>(false);
+  readonly error = signal<string | null>(null);
 
   readonly view = signal<ViewMode>('inbox');
   readonly estadoFilter = signal<EstadoFilter>('todas');
   readonly tipoFilter = signal<string>('todos');
   readonly query = signal<string>('');
   readonly semanticMode = signal<boolean>(false);
-  readonly selected = signal<string>(this.data.getLlamadas()[0]?.id ?? '');
+  readonly selected = signal<string>('');
 
   readonly tipoChips: TipoChip[] = [
     { key: 'todos', label: 'Todos', color: null },
@@ -281,7 +291,7 @@ export class LlamadasPageComponent {
   ];
 
   readonly filtered = computed<Llamada[]>(() => {
-    let list = this.data.getLlamadas();
+    let list = this.llamadas();
     const ef = this.estadoFilter();
     if (ef === 'revisar') list = list.filter((l) => l.estado === 'A REVISAR');
     if (ef === 'revision') list = list.filter((l) => l.estado === 'EN REVISIÓN');
@@ -308,6 +318,32 @@ export class LlamadasPageComponent {
     const sel = this.selected();
     return list.find((l) => l.id === sel) ?? list[0] ?? null;
   });
+
+  ngOnInit(): void {
+    this.load();
+  }
+
+  private load(): void {
+    this.loading.set(true);
+    this.error.set(null);
+    // page_size=200 preserva el modelo client-side de filtrado/ordenación.
+    // Cuando se active la paginación real, mover estado/tipo/query a params.
+    this.api.list({ page: 1, page_size: 200, sort_by: 'call_timestamp', sort_dir: 'desc' }).subscribe({
+      next: (res) => {
+        this.llamadas.set(res.items);
+        this.loading.set(false);
+        // Selecciona por defecto la primera llamada del resultado.
+        if (!this.selected() && res.items.length > 0) {
+          this.selected.set(res.items[0].id);
+        }
+      },
+      error: (err) => {
+        this.loading.set(false);
+        this.error.set('No se pudieron cargar las llamadas');
+        console.error('[llamadas] error cargando /api/calls', err);
+      },
+    });
+  }
 
   onQueryInput(e: Event): void {
     this.query.set((e.target as HTMLInputElement).value);

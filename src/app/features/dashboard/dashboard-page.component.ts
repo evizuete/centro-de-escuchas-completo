@@ -1,7 +1,8 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
-import { DataService } from '../../core/services/data.service';
+import { DashboardApiService, DashboardPeriod } from '../../core/services/dashboard-api.service';
+import { MOCK_DASHBOARD } from '../../core/services/dashboard.data';
 import { IconComponent } from '../../shared/components/icon.component';
 import { TagComponent } from '../../shared/components/tag.component';
 import { DonutComponent } from '../../shared/components/donut.component';
@@ -11,9 +12,9 @@ import { TrendChartComponent } from './components/trend-chart.component';
 import { HeatmapComponent, HeatmapView } from './components/heatmap.component';
 import { QualityRadarComponent } from './components/quality-radar.component';
 import { CallQuickRowComponent } from './components/call-quick-row.component';
-import { Llamada } from '../../core/models/domain.models';
+import { DashboardData, Llamada } from '../../core/models/domain.models';
 
-type Periodo = 'hoy' | 'semana' | 'mes' | 'trimestre';
+type Periodo = DashboardPeriod;
 
 @Component({
   selector: 'app-dashboard-page',
@@ -265,11 +266,22 @@ type Periodo = 'hoy' | 'semana' | 'mes' | 'trimestre';
   `,
 })
 export class DashboardPageComponent {
-  private data = inject(DataService);
+  private api = inject(DashboardApiService);
   private router = inject(Router);
 
-  readonly d = this.data.dashboard;
-  readonly periodo = signal<Periodo>('hoy');
+  /**
+   * Signal con el payload completo del dashboard.
+   *
+   * Se inicializa con MOCK_DASHBOARD para que el primer render tenga siempre
+   * datos (evita el flash del layout vacío) y se sobrescribe en cuanto el
+   * backend responde. Cualquier cambio de periodo dispara una nueva carga.
+   */
+  readonly d = signal<DashboardData>(MOCK_DASHBOARD);
+
+  readonly loading = signal<boolean>(false);
+  readonly error = signal<string | null>(null);
+
+  readonly periodo = signal<Periodo>('semana');
   readonly periodos: Periodo[] = ['hoy', 'semana', 'mes', 'trimestre'];
 
   readonly heatmapView = signal<HeatmapView>('sentimiento');
@@ -287,6 +299,30 @@ export class DashboardPageComponent {
       .llamadas.filter((l) => l.estado === 'A REVISAR' || l.estado === 'EN REVISIÓN')
       .slice(0, 4)
   );
+
+  constructor() {
+    // Recarga el dashboard cada vez que cambia el periodo seleccionado.
+    effect(() => {
+      const p = this.periodo();
+      this.loading.set(true);
+      this.error.set(null);
+      this.api.getDashboard(p).subscribe({
+        next: (data) => {
+          this.d.set(data);
+          this.loading.set(false);
+          // Si el agente seleccionado ya no existe, vuelve al primero.
+          if (this.selectedAgenteIdx() >= data.agentesCalidad.length) {
+            this.selectedAgenteIdx.set(0);
+          }
+        },
+        error: (err) => {
+          this.loading.set(false);
+          this.error.set('No se pudo cargar el dashboard');
+          console.error('[dashboard] error cargando /api/dashboard', err);
+        },
+      });
+    });
+  }
 
   onAgenteChange(e: Event): void {
     const idx = Number((e.target as HTMLSelectElement).value);

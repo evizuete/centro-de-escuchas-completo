@@ -46,6 +46,12 @@ export const routes: Routes = [
           import('./features/supervisores/pages/agente-perfil.component').then((m) => m.AgentePerfilComponent),
       },
       {
+        path: 'admin',
+        loadComponent: () =>
+          import('./features/admin/admin-page.component').then((m) => m.AdminPageComponent),
+        title: 'Administración',
+      },
+      {
         path: 'admin/pipeline-health',
         loadComponent: () =>
             import('./features/pipeline-health/pipeline-health.component')

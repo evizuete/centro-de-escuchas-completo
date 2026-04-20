@@ -1,7 +1,8 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
-import { DataService } from '../../../core/services/data.service';
+import { forkJoin } from 'rxjs';
+import { SupervisorsApiService } from '../../../core/services/supervisors-api.service';
 import { Agente, Dims, Supervisor } from '../../../core/models/domain.models';
 import { IconComponent } from '../../../shared/components/icon.component';
 import { ScoreBadgeComponent } from '../../../shared/components/score-badge.component';
@@ -32,7 +33,15 @@ const DIM_LABELS: Record<string, string> = {
         </div>
       </header>
 
-      <!-- KPIs globales (4 cols) -->
+      @if (loading()) {
+        <div style="padding: 40px; text-align: center; color: #64748b;">Cargando supervisores…</div>
+      }
+
+      @if (error()) {
+        <div style="padding: 40px; text-align: center; color: #dc2626;">{{ error() }}</div>
+      }
+
+      @if (!loading() && !error()) {
       <div class="kpis" style="grid-template-columns: repeat(4, 1fr);">
         <div class="kpi-card">
           <div style="font-size: 10.5px; color: #64748b; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; line-height: 1.25; min-height: 26px;">
@@ -43,10 +52,6 @@ const DIM_LABELS: Record<string, string> = {
             <div style="width: 30px; height: 30px; border-radius: 8px; background: #f59e0b14; display: flex; align-items: center; justify-content: center;">
               <app-icon name="sparkles" [size]="15" color="#f59e0b" />
             </div>
-          </div>
-          <div style="margin-top: 8px; font-size: 11px; display: flex; align-items: center; gap: 6px;">
-            <span style="font-weight: 700; color: #15803d;">+3pt</span>
-            <span style="color: #94a3b8;">vs mes anterior</span>
           </div>
         </div>
 
@@ -59,10 +64,6 @@ const DIM_LABELS: Record<string, string> = {
             <div style="width: 30px; height: 30px; border-radius: 8px; background: #8b5cf614; display: flex; align-items: center; justify-content: center;">
               <app-icon name="star" [size]="15" color="#8b5cf6" />
             </div>
-          </div>
-          <div style="margin-top: 8px; font-size: 11px; display: flex; align-items: center; gap: 6px;">
-            <span style="font-weight: 700; color: #15803d;">+5pt</span>
-            <span style="color: #94a3b8;">vs mes anterior</span>
           </div>
         </div>
 
@@ -91,13 +92,9 @@ const DIM_LABELS: Record<string, string> = {
               <app-icon name="alert" [size]="15" color="#dc2626" />
             </div>
           </div>
-          <div style="margin-top: 8px; font-size: 11px;">
-            <span style="color: #dc2626; font-weight: 600;">Requieren coaching</span>
-          </div>
         </div>
       </div>
 
-      <!-- Ranking -->
       <div class="card" style="margin-bottom: 18px;">
         <div class="card__header">
           <div>
@@ -140,7 +137,11 @@ const DIM_LABELS: Record<string, string> = {
                   (mouseleave)="onRowLeave($event)"
                 >
                   <td style="padding: 12px; display: flex; align-items: center; gap: 10px;">
-                    <img [src]="s.foto" [alt]="s.nombre" style="width: 34px; height: 34px; border-radius: 50%; object-fit: cover;" />
+                    @if (s.foto) {
+                      <img [src]="s.foto" [alt]="s.nombre" style="width: 34px; height: 34px; border-radius: 50%; object-fit: cover;" />
+                    } @else {
+                      <div style="width: 34px; height: 34px; border-radius: 50%; background: #e2e8f0; color: #475569; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px;">{{ initials(s.nombre) }}</div>
+                    }
                     <div>
                       <div style="font-weight: 600; color: #0f172a;">{{ s.nombre }}</div>
                       <div style="font-size: 11px; color: #94a3b8;">{{ s.pais }} · {{ s.antiguedad }}</div>
@@ -156,7 +157,11 @@ const DIM_LABELS: Record<string, string> = {
                   </td>
                   <td style="padding: 12px; text-align: right; font-weight: 600; font-feature-settings: 'tnum';">{{ s.cxMedio }}</td>
                   <td style="padding: 12px;">
-                    <app-sparkline [data]="s.tendencia" [width]="100" [height]="22" color="#3b82f6" />
+                    @if (s.tendencia && s.tendencia.length > 0) {
+                      <app-sparkline [data]="s.tendencia" [width]="100" [height]="22" color="#3b82f6" />
+                    } @else {
+                      <span style="color: #cbd5e1; font-size: 11px;">—</span>
+                    }
                   </td>
                   <td
                     style="padding: 12px; text-align: right; font-weight: 700; font-feature-settings: 'tnum';"
@@ -178,7 +183,6 @@ const DIM_LABELS: Record<string, string> = {
         </div>
       </div>
 
-      <!-- Heatmap organizacional + Top/Bottom -->
       <div class="grid grid--3">
         <div class="card" style="grid-column: span 2;">
           <div class="card__header">
@@ -239,7 +243,11 @@ const DIM_LABELS: Record<string, string> = {
                 (mouseenter)="onTopEnter($event)" (mouseleave)="onRowLeave($event)"
               >
                 <span style="font-size: 10px; font-weight: 700; color: #15803d; width: 14px; font-feature-settings: 'tnum';">#{{ i + 1 }}</span>
-                <img [src]="a.foto" style="width: 26px; height: 26px; border-radius: 50%;" />
+                @if (a.foto) {
+                  <img [src]="a.foto" style="width: 26px; height: 26px; border-radius: 50%;" />
+                } @else {
+                  <div style="width: 26px; height: 26px; border-radius: 50%; background: #dcfce7; color: #15803d; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 10px;">{{ initials(a.nombre) }}</div>
+                }
                 <div style="flex: 1; min-width: 0;">
                   <div style="font-weight: 600; font-size: 12px; color: #0f172a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ a.nombre }}</div>
                   <div style="font-size: 10px; color: #94a3b8;">{{ supFirstName(a.supervisorId) }}</div>
@@ -258,7 +266,11 @@ const DIM_LABELS: Record<string, string> = {
                 (mouseenter)="onBottomEnter($event)" (mouseleave)="onRowLeave($event)"
               >
                 <span style="font-size: 10px; font-weight: 700; color: #dc2626; width: 14px; font-feature-settings: 'tnum';">#{{ i + 1 }}</span>
-                <img [src]="a.foto" style="width: 26px; height: 26px; border-radius: 50%;" />
+                @if (a.foto) {
+                  <img [src]="a.foto" style="width: 26px; height: 26px; border-radius: 50%;" />
+                } @else {
+                  <div style="width: 26px; height: 26px; border-radius: 50%; background: #fee2e2; color: #dc2626; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 10px;">{{ initials(a.nombre) }}</div>
+                }
                 <div style="flex: 1; min-width: 0;">
                   <div style="font-weight: 600; font-size: 12px; color: #0f172a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ a.nombre }}</div>
                   <div style="font-size: 10px; color: #94a3b8;">{{ supFirstName(a.supervisorId) }}</div>
@@ -269,50 +281,52 @@ const DIM_LABELS: Record<string, string> = {
           </div>
         </div>
       </div>
+      }
     </div>
   `,
 })
 export class SupervisoresGlobalComponent {
-  private data = inject(DataService);
+  private api = inject(SupervisorsApiService);
   private router = inject(Router);
 
-  readonly sups = this.data.supervisores;
-  readonly agentes = this.data.agentes;
+  readonly sups = signal<Supervisor[]>([]);
+  readonly agentes = signal<Agente[]>([]);
+  readonly loading = signal<boolean>(true);
+  readonly error = signal<string | null>(null);
+
   readonly sortBy = signal<SortKey>('score');
 
   readonly sortOptions: [SortKey, string][] = [
-    ['score', 'Score'],
-    ['volumen', 'Volumen'],
-    ['alertas', 'Alertas'],
-    ['delta', 'Tendencia'],
+    ['score', 'Score'], ['volumen', 'Volumen'],
+    ['alertas', 'Alertas'], ['delta', 'Tendencia'],
   ];
 
   readonly dimsList = DIMS;
   readonly legend: [number, string][] = [
-    [88, 'Excelente'],
-    [82, 'Muy bueno'],
-    [75, 'Bueno'],
-    [68, 'Regular'],
-    [0, 'Crítico'],
+    [88, 'Excelente'], [82, 'Muy bueno'], [75, 'Bueno'], [68, 'Regular'], [0, 'Crítico'],
   ];
 
-  // KPIs agregados
   readonly totalLlamadas = computed(() =>
     this.sups().reduce((a, s) => a + s.nLlamadas, 0).toLocaleString('es')
   );
   readonly scoreMedio = computed(() => {
     const s = this.sups();
     const total = s.reduce((a, x) => a + x.nAgentes, 0);
+    if (!total) return 0;
     return Math.round(s.reduce((a, x) => a + x.scoreMedio * x.nAgentes, 0) / total);
   });
   readonly cxMedio = computed(() => {
     const s = this.sups();
     const total = s.reduce((a, x) => a + x.nAgentes, 0);
+    if (!total) return 0;
     return Math.round(s.reduce((a, x) => a + x.cxMedio * x.nAgentes, 0) / total);
   });
   readonly agentesExcelentes = computed(() => this.agentes().filter((a) => a.score >= 85).length);
   readonly agentesRiesgo = computed(() => this.agentes().filter((a) => a.score < 65).length);
-  readonly pctExcelentes = computed(() => Math.round((this.agentesExcelentes() / this.agentes().length) * 100));
+  readonly pctExcelentes = computed(() => {
+    const n = this.agentes().length;
+    return n ? Math.round((this.agentesExcelentes() / n) * 100) : 0;
+  });
 
   readonly sortedSups = computed<Supervisor[]>(() => {
     const arr = [...this.sups()];
@@ -332,8 +346,25 @@ export class SupervisoresGlobalComponent {
     [...this.agentes()].sort((a, b) => a.score - b.score).slice(0, 5)
   );
 
-  dimLabel(k: string): string { return DIM_LABELS[k] ?? k; }
+  constructor() {
+    forkJoin({
+      sups: this.api.listSupervisors(),
+      agentes: this.api.listAgents(),
+    }).subscribe({
+      next: ({ sups, agentes }) => {
+        this.sups.set(sups);
+        this.agentes.set(agentes);
+        this.loading.set(false);
+      },
+      error: (err) => {
+        this.loading.set(false);
+        this.error.set('No se pudieron cargar los supervisores');
+        console.error('[supervisores-global] error', err);
+      },
+    });
+  }
 
+  dimLabel(k: string): string { return DIM_LABELS[k] ?? k; }
   heatColor(v: number): string {
     if (v >= 88) return '#15803d';
     if (v >= 82) return '#22c55e';
@@ -341,19 +372,17 @@ export class SupervisoresGlobalComponent {
     if (v >= 68) return '#f59e0b';
     return '#dc2626';
   }
-
-  supFirstName(id: string): string {
-    return this.data.getSupervisor(id)?.nombre.split(' ')[0] ?? '';
+  initials(nombre: string): string {
+    const parts = nombre.trim().split(/\s+/);
+    return ((parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '')).toUpperCase() || '?';
   }
-
-  openSupervisor(id: string): void {
-    this.router.navigate(['/supervisores', id]);
+  supFirstName(id: string | undefined): string {
+    if (!id) return '';
+    const s = this.sups().find((x) => x.id === id);
+    return s ? s.nombre.split(' ')[0] : '';
   }
-  openAgente(id: string): void {
-    this.router.navigate(['/agentes', id]);
-  }
-
-  // Hover simples
+  openSupervisor(id: string): void { this.router.navigate(['/supervisores', id]); }
+  openAgente(id: string): void { this.router.navigate(['/agentes', id]); }
   onRowEnter(e: MouseEvent): void { (e.currentTarget as HTMLElement).style.background = '#f8fafc'; }
   onRowLeave(e: MouseEvent): void { (e.currentTarget as HTMLElement).style.background = 'transparent'; }
   onTopEnter(e: MouseEvent): void { (e.currentTarget as HTMLElement).style.background = '#f0fdf4'; }

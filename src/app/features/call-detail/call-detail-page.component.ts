@@ -1,7 +1,7 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, effect, inject, input, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
-import { DataService } from '../../core/services/data.service';
+import { CallsApiService } from '../../core/services/calls-api.service';
 import { DetalleLlamada } from '../../core/models/domain.models';
 import { IconComponent } from '../../shared/components/icon.component';
 import { TagComponent } from '../../shared/components/tag.component';
@@ -33,79 +33,98 @@ interface TabDef { id: TabId; label: string; nuevo?: boolean; }
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="page">
-      <!-- Topbar -->
-      <div class="detail-topbar">
-        <button type="button" class="btn btn--ghost" (click)="back()">
-          <app-icon name="back" [size]="14" /> Volver
-        </button>
-        <div style="display: flex; align-items: center; gap: 8px;">
-          <span style="font-size: 11px; color: #94a3b8; font-feature-settings: 'tnum'; font-family: monospace;">
-            {{ d().id }}
-          </span>
-          <app-tag variant="green">PROCESSED</app-tag>
-        </div>
-        <div style="margin-left: auto; display: flex; gap: 8px; align-items: center;">
-          <span style="font-size: 12px; color: #64748b;">{{ d().interaccion.agente }}</span>
-          <span style="font-size: 12px; color: #94a3b8;">{{ d().interaccion.duracion }}</span>
-          <button type="button" class="btn btn--ghost">
-            <app-icon name="phone" [size]="13" /> Contactar agente
-          </button>
-        </div>
-      </div>
+      @if (loading() && !detalle()) {
+        <div style="padding: 40px; text-align: center; color: #64748b;">Cargando llamada…</div>
+      }
 
-      <!-- Header -->
-      <div class="detail-header">
-        <div style="flex: 1; min-width: 0;">
-          <app-tag variant="blue">{{ d().categoria }}</app-tag>
-          <h1 style="margin: 8px 0 2px; font-size: 26px; font-weight: 700; color: #0f172a;">{{ d().cliente }}</h1>
-          <div style="font-size: 13px; color: #64748b; margin-bottom: 8px;">{{ d().empresa }} · {{ d().ciudad }}</div>
-          <div style="font-size: 13px; color: #334155; line-height: 1.5; max-width: 620px;">{{ d().resumen }}</div>
+      @if (error()) {
+        <div style="padding: 40px; text-align: center; color: #dc2626;">
+          {{ error() }}
+          <div style="margin-top: 12px;">
+            <button type="button" class="btn btn--ghost" (click)="back()">Volver</button>
+          </div>
         </div>
-        <div style="display: flex; gap: 12px;">
-          <app-score-badge [value]="d().score" [label]="'VALORACIÓN\nLLAMADA'" size="lg" />
-          <app-score-badge [value]="d().cx" [label]="'EXPERIENCIA\nCLIENTE'" size="lg" />
-          <app-score-badge [value]="d().complejidad" label="COMPLEJIDAD" size="lg" />
-          <app-score-badge [value]="d().agente" [label]="'CALIDAD\nAGENTE'" size="lg" />
-        </div>
-      </div>
+      }
 
-      <!-- Tabs -->
-      <div class="tabs">
-        @for (t of tabs; track t.id) {
-          <button
-            type="button"
-            class="tab"
-            [class.tab--active]="tab() === t.id"
-            (click)="tab.set(t.id)"
-          >
-            {{ t.label }}
-            @if (t.nuevo) {
-              <span class="tab__new">nuevo</span>
-            }
+      @if (detalle(); as d) {
+        <!-- Topbar -->
+        <div class="detail-topbar">
+          <button type="button" class="btn btn--ghost" (click)="back()">
+            <app-icon name="back" [size]="14" /> Volver
           </button>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 11px; color: #94a3b8; font-feature-settings: 'tnum'; font-family: monospace;">
+              {{ d.id }}
+            </span>
+            <app-tag variant="green">PROCESSED</app-tag>
+          </div>
+          <div style="margin-left: auto; display: flex; gap: 8px; align-items: center;">
+            <span style="font-size: 12px; color: #64748b;">{{ d.interaccion.agente }}</span>
+            <span style="font-size: 12px; color: #94a3b8;">{{ d.interaccion.duracion }}</span>
+            <button type="button" class="btn btn--ghost">
+              <app-icon name="phone" [size]="13" /> Contactar agente
+            </button>
+          </div>
+        </div>
+
+        <!-- Header -->
+        <div class="detail-header">
+          <div style="flex: 1; min-width: 0;">
+            <app-tag variant="blue">{{ d.categoria }}</app-tag>
+            <h1 style="margin: 8px 0 2px; font-size: 26px; font-weight: 700; color: #0f172a;">{{ d.cliente }}</h1>
+            <div style="font-size: 13px; color: #64748b; margin-bottom: 8px;">{{ d.empresa }} · {{ d.ciudad }}</div>
+            <div style="font-size: 13px; color: #334155; line-height: 1.5; max-width: 620px;">{{ d.resumen }}</div>
+          </div>
+          <div style="display: flex; gap: 12px;">
+            <app-score-badge [value]="d.score" [label]="'VALORACIÓN\nLLAMADA'" size="lg" />
+            <app-score-badge [value]="d.cx" [label]="'EXPERIENCIA\nCLIENTE'" size="lg" />
+            <app-score-badge [value]="d.complejidad" label="COMPLEJIDAD" size="lg" />
+            <app-score-badge [value]="d.agente" [label]="'CALIDAD\nAGENTE'" size="lg" />
+          </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="tabs">
+          @for (t of tabs; track t.id) {
+            <button
+              type="button"
+              class="tab"
+              [class.tab--active]="tab() === t.id"
+              (click)="tab.set(t.id)"
+            >
+              {{ t.label }}
+              @if (t.nuevo) {
+                <span class="tab__new">nuevo</span>
+              }
+            </button>
+          }
+        </div>
+
+        <!-- Contenido -->
+        @switch (tab()) {
+          @case ('resumen')        { <app-tab-resumen [d]="d" (openAgente)="openAgente($event)" /> }
+          @case ('transcripcion')  { <app-tab-transcripcion [d]="d" /> }
+          @case ('momentos')       { <app-tab-momentos [d]="d" /> }
+          @case ('coaching')       { <app-tab-coaching [d]="d" /> }
+          @case ('calidad')        { <app-tab-calidad [d]="d" /> }
+          @case ('analisis')       { <app-tab-analisis [d]="d" /> }
+          @case ('recomendaciones'){ <app-tab-recomendaciones [d]="d" /> }
+          @case ('notas')          { <app-tab-notas [d]="d" /> }
         }
-      </div>
-
-      <!-- Contenido -->
-      @switch (tab()) {
-        @case ('resumen')        { <app-tab-resumen [d]="d()" (openAgente)="openAgente($event)" /> }
-        @case ('transcripcion')  { <app-tab-transcripcion [d]="d()" /> }
-        @case ('momentos')       { <app-tab-momentos [d]="d()" /> }
-        @case ('coaching')       { <app-tab-coaching [d]="d()" /> }
-        @case ('calidad')        { <app-tab-calidad [d]="d()" /> }
-        @case ('analisis')       { <app-tab-analisis [d]="d()" /> }
-        @case ('recomendaciones'){ <app-tab-recomendaciones [d]="d()" /> }
-        @case ('notas')          { <app-tab-notas [d]="d()" /> }
       }
     </div>
   `,
 })
 export class CallDetailPageComponent {
-  private data = inject(DataService);
+  private api = inject(CallsApiService);
   private router = inject(Router);
 
   /** Viene por `withComponentInputBinding` desde la ruta `/llamadas/:id`. */
   id = input<string>('');
+
+  readonly detalle = signal<DetalleLlamada | null>(null);
+  readonly loading = signal<boolean>(false);
+  readonly error = signal<string | null>(null);
 
   readonly tab = signal<TabId>('resumen');
   readonly tabs: TabDef[] = [
@@ -119,7 +138,35 @@ export class CallDetailPageComponent {
     { id: 'notas',          label: 'Notas' },
   ];
 
-  readonly d = computed<DetalleLlamada>(() => this.data.getDetalleLlamada(this.id()));
+  constructor() {
+    // Cada vez que cambia el :id de la ruta, recarga el detalle.
+    effect(() => {
+      const callId = this.id();
+      if (!callId) {
+        this.detalle.set(null);
+        return;
+      }
+      this.loading.set(true);
+      this.error.set(null);
+      this.api.getDetail(callId).subscribe({
+        next: (d) => {
+          this.detalle.set(d);
+          this.loading.set(false);
+        },
+        error: (err) => {
+          this.loading.set(false);
+          this.detalle.set(null);
+          const status = err?.status;
+          if (status === 404) {
+            this.error.set(`Llamada ${callId} no encontrada`);
+          } else {
+            this.error.set('No se pudo cargar la llamada');
+          }
+          console.error('[call-detail] error cargando /api/calls/:id', err);
+        },
+      });
+    });
+  }
 
   back(): void {
     this.router.navigate(['/llamadas']);

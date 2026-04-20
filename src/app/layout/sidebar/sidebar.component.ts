@@ -59,6 +59,7 @@ export class SidebarComponent {
     { path: '/dashboard', label: 'Dashboard', icon: 'dashboard' },
     { path: '/llamadas', label: 'Llamadas', icon: 'phone' },
     { path: '/supervisores', label: 'Supervisores', icon: 'users' },
+    { path: '/admin', label: 'Administración', icon: 'tweaks' },
   ];
 
   logout(): void {
