@@ -1,20 +1,106 @@
-import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { DetalleLlamada } from '../../../core/models/domain.models';
+import {
+  DetalleLlamada,
+  Observacion,
+  ObservacionDimension,
+} from '../../../core/models/domain.models';
 import { BarComponent } from '../../../shared/components/bar.component';
 import { scoreColor } from '../../../core/services/style.utils';
 
-interface Row {
+interface DimensionRow {
   key: string;
+  label: string;
   value: number;
   color: string;
 }
+
+// Mapeo de claves de CalidadDimsCall a dimensiones del backend. La BD usa
+// "conocimiento" pero los momentos del LLM emiten "producto". Los unificamos
+// para que el hover entre observación y barra funcione en ambos sentidos.
+const DIM_ALIASES: Record<string, ObservacionDimension> = {
+  saludo: 'saludo',
+  empatia: 'empatia',
+  eficiencia: 'eficiencia',
+  claridad: 'claridad',
+  conocimiento: 'producto',
+  producto: 'producto',
+  cierre: 'cierre',
+};
+
+// Label visible de cada dimensión
+const DIM_LABELS: Record<string, string> = {
+  saludo: 'Saludo',
+  empatia: 'Empatía',
+  eficiencia: 'Eficiencia',
+  claridad: 'Claridad',
+  conocimiento: 'Conocimiento',
+  producto: 'Producto',
+  cierre: 'Cierre',
+};
 
 @Component({
   selector: 'app-tab-calidad',
   standalone: true,
   imports: [CommonModule, BarComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
+  styles: [`
+    /* Layout desktop: 3 columnas (coaching + coaching + dimensiones) */
+    .tab-calidad__grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 260px;
+      gap: 20px;
+      align-items: start;
+    }
+
+    /* Pantallas pequeñas: dimensiones arriba a ancho completo,
+       coaching debajo en 2 columnas.
+       El orden lo forzamos con CSS grid areas. */
+    @media (max-width: 1199px) {
+      .tab-calidad__grid {
+        grid-template-columns: 1fr 1fr;
+        grid-template-areas:
+          "dims   dims"
+          "pos    mej";
+      }
+      .tab-calidad__col-pos  { grid-area: pos; }
+      .tab-calidad__col-mej  { grid-area: mej; }
+      .tab-calidad__col-dims { grid-area: dims; }
+    }
+
+    /* Móvil: todo apilado */
+    @media (max-width: 640px) {
+      .tab-calidad__grid {
+        grid-template-columns: 1fr;
+        grid-template-areas:
+          "dims"
+          "pos"
+          "mej";
+      }
+    }
+
+    /* Default desktop: dimensiones apiladas verticalmente en columna estrecha */
+    .tab-calidad__dims-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    /* En modo apilado (dimensiones arriba ancho completo), las 6
+       filas de dimensiones pasan a formato horizontal compacto */
+    @media (max-width: 1199px) {
+      .tab-calidad__dims-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px 20px;
+      }
+    }
+    @media (max-width: 640px) {
+      .tab-calidad__dims-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+  `],
   template: `
     <div>
       <!-- ==================== Puntuación global (cabecera) ==================== -->
@@ -40,78 +126,145 @@ interface Row {
         </div>
       </div>
 
-      <!-- ==================== Columnas: agente (izq) · cliente (der) ==================== -->
-      <div class="grid grid--2" style="align-items: start;">
+      <!-- ========== 3 columnas: positivas (1fr) · mejoras (1fr) · dimensiones (260px) ========== -->
+      <!-- En <1200px pasa a 2 cols con dimensiones arriba a ancho completo -->
+      <div class="tab-calidad__grid">
 
-        <!-- ============ IZQUIERDA: Calidad agente + Observaciones ============ -->
-        <div>
-          <h2 class="section-title">Calidad del agente</h2>
-          <div style="display: flex; flex-direction: column; gap: 12px;">
-            @for (row of rows(); track row.key) {
-              <div style="display: flex; align-items: center; gap: 12px;">
-                <span style="font-size: 13px; color: #334155; width: 110px; text-transform: capitalize; font-weight: 500;">{{ row.key }}</span>
-                <app-bar [value]="row.value" [color]="row.color" [height]="8" />
-                <span
-                  style="font-size: 13px; font-weight: 700; font-feature-settings: 'tnum'; min-width: 32px; text-align: right;"
-                  [style.color]="row.color"
-                >{{ row.value }}</span>
-              </div>
-            }
+        <!-- ============ COLUMNA 1: Qué hizo bien ============ -->
+        <div class="tab-calidad__col-pos">
+          <div style="display: flex; align-items: baseline; gap: 10px; margin-bottom: 6px;">
+            <h2 style="margin: 0; font-size: 16px; font-weight: 700; color: #0f172a;">
+              Qué hizo bien
+            </h2>
+            <span
+              style="padding: 2px 9px; border-radius: 999px; font-size: 11px;
+                     font-weight: 700; font-feature-settings: 'tnum';
+                     background: #dcfce7; color: #15803d;"
+            >{{ positivas().length }}</span>
+          </div>
+          <div style="font-size: 12px; color: #64748b; margin-bottom: 14px;">
+            Técnicas aplicadas correctamente
           </div>
 
-          <h3 class="section-subtitle" style="margin-top: 26px;">Observaciones</h3>
-          <div class="card__subtitle" style="margin-bottom: 12px;">
-            Patrones detectados y oportunidades de mejora
-          </div>
           <div style="display: flex; flex-direction: column; gap: 10px;">
-            @for (o of d().observaciones; track $index) {
-              <div style="padding: 12px 16px; background: #fff; border: 1px solid #e2e8f0;
-                          border-radius: 8px; font-size: 13px; color: #334155; line-height: 1.55;
-                          display: flex; gap: 10px; align-items: flex-start;">
-                <span style="color: #22c55e; font-weight: 700; flex-shrink: 0; margin-top: 1px;">›</span>
-                <span style="flex: 1;">{{ o }}</span>
+            @for (o of positivas(); track $index) {
+              <div
+                (mouseenter)="highlightDim.set(o.dimension)"
+                (mouseleave)="highlightDim.set(null)"
+                style="padding: 14px 16px; background: #fff; border: 1px solid #e2e8f0;
+                       border-radius: 10px; border-left: 3px solid #22c55e;
+                       transition: border-color 0.15s, transform 0.12s;"
+                [style.transform]="highlightDim() === o.dimension ? 'translateX(2px)' : 'none'"
+              >
+                <div style="display: flex; align-items: baseline; justify-content: space-between;
+                            gap: 10px; margin-bottom: 6px;">
+                  <div style="font-size: 13px; font-weight: 600; color: #0f172a;">
+                    {{ o.title }}
+                  </div>
+                  <span
+                    style="padding: 2px 7px; border-radius: 4px; font-size: 10px;
+                           font-weight: 600; letter-spacing: 0.4px; text-transform: uppercase;
+                           background: #f1f5f9; color: #64748b; flex-shrink: 0;"
+                  >{{ dimLabel(o.dimension) }}</span>
+                </div>
+                <div style="font-size: 13px; color: #475569; line-height: 1.55;">
+                  {{ o.detail }}
+                </div>
               </div>
             }
-            @if (d().observaciones.length === 0) {
-              <div style="padding: 14px; text-align: center; color: #94a3b8; font-size: 12px;">
-                Sin observaciones registradas.
+            @if (positivas().length === 0) {
+              <div style="padding: 28px 16px; text-align: center; color: #94a3b8; font-size: 12px;
+                          background: #fafafa; border: 1px dashed #e2e8f0; border-radius: 10px;">
+                Sin observaciones positivas destacadas.
               </div>
             }
           </div>
         </div>
 
-        <!-- ============ DERECHA: Calidad cliente (CX) ============ -->
-        <div>
-          <h2 class="section-title">Calidad del cliente</h2>
-          <div class="card__subtitle" style="margin-bottom: 16px;">
-            Experiencia percibida por el cliente durante la llamada
+        <!-- ============ COLUMNA 2: Oportunidades de mejora ============ -->
+        <div class="tab-calidad__col-mej">
+          <div style="display: flex; align-items: baseline; gap: 10px; margin-bottom: 6px;">
+            <h2 style="margin: 0; font-size: 16px; font-weight: 700; color: #0f172a;">
+              Oportunidades de mejora
+            </h2>
+            <span
+              style="padding: 2px 9px; border-radius: 999px; font-size: 11px;
+                     font-weight: 700; font-feature-settings: 'tnum';
+                     background: #fef3c7; color: #b45309;"
+            >{{ mejoras().length }}</span>
+          </div>
+          <div style="font-size: 12px; color: #64748b; margin-bottom: 14px;">
+            Patrones a trabajar en próximas llamadas
           </div>
 
-          <div
-            style="padding: 28px 20px; background: #fff; border: 1px solid #e2e8f0;
-                   border-radius: 12px; text-align: center;"
-          >
-            <div style="font-size: 10.5px; font-weight: 700; color: #64748b; letter-spacing: 0.8px; text-transform: uppercase;">
-              CX · Customer Experience
-            </div>
-            <div style="display: flex; align-items: baseline; justify-content: center; gap: 6px; margin-top: 12px;">
-              <span
-                style="font-size: 64px; font-weight: 700; font-feature-settings: 'tnum'; line-height: 1;"
-                [style.color]="cxColor()"
-              >{{ d().cx }}</span>
-              <span style="font-size: 20px; color: #64748b; font-weight: 600;">/ 100</span>
-            </div>
-            <div
-              style="margin-top: 14px; display: inline-block; padding: 4px 12px; border-radius: 999px; font-size: 12px; font-weight: 700;"
-              [style.background]="cxBadgeBg()"
-              [style.color]="cxColor()"
-            >{{ cxLabel() }}</div>
+          <div style="display: flex; flex-direction: column; gap: 10px;">
+            @for (o of mejoras(); track $index) {
+              <div
+                (mouseenter)="highlightDim.set(o.dimension)"
+                (mouseleave)="highlightDim.set(null)"
+                style="padding: 14px 16px; background: #fff; border: 1px solid #e2e8f0;
+                       border-radius: 10px; border-left: 3px solid #f59e0b;
+                       transition: border-color 0.15s, transform 0.12s;"
+                [style.transform]="highlightDim() === o.dimension ? 'translateX(2px)' : 'none'"
+              >
+                <div style="display: flex; align-items: baseline; justify-content: space-between;
+                            gap: 10px; margin-bottom: 6px;">
+                  <div style="font-size: 13px; font-weight: 600; color: #0f172a;">
+                    {{ o.title }}
+                  </div>
+                  <span
+                    style="padding: 2px 7px; border-radius: 4px; font-size: 10px;
+                           font-weight: 600; letter-spacing: 0.4px; text-transform: uppercase;
+                           background: #f1f5f9; color: #64748b; flex-shrink: 0;"
+                  >{{ dimLabel(o.dimension) }}</span>
+                </div>
+                <div style="font-size: 13px; color: #475569; line-height: 1.55;">
+                  {{ o.detail }}
+                </div>
+              </div>
+            }
+            @if (mejoras().length === 0) {
+              <div style="padding: 28px 16px; text-align: center; color: #94a3b8; font-size: 12px;
+                          background: #fafafa; border: 1px dashed #e2e8f0; border-radius: 10px;">
+                Sin oportunidades de mejora detectadas. ¡Buen trabajo!
+              </div>
+            }
+          </div>
+        </div>
 
-            <div style="margin-top: 18px; padding-top: 18px; border-top: 1px dashed #e2e8f0;
-                        font-size: 12px; color: #64748b; line-height: 1.6; text-align: left;">
-              <b style="color: #334155;">Cómo se interpreta:</b> el CX mide cómo percibió el cliente
-              la interacción considerando tono, resolución, espera y satisfacción final. Es una
-              valoración global, sin dimensiones desglosadas.
+        <!-- ============ COLUMNA 3: Dimensiones (estrecha en desktop, ancha arriba en tablet) ============ -->
+        <div class="tab-calidad__col-dims">
+          <div style="margin-bottom: 6px;">
+            <h2 style="margin: 0; font-size: 16px; font-weight: 700; color: #0f172a;">
+              Dimensiones
+            </h2>
+          </div>
+          <div style="font-size: 12px; color: #64748b; margin-bottom: 14px;">
+            Desglose de calidad
+          </div>
+          <div
+            style="padding: 14px 14px; background: #fff; border: 1px solid #e2e8f0;
+                   border-radius: 10px;"
+          >
+            <div class="tab-calidad__dims-grid">
+              @for (row of rows(); track row.key) {
+                <div
+                  style="padding: 6px 8px; border-radius: 6px; transition: background 0.15s;"
+                  [style.background]="isDimHighlighted(row.key) ? '#fef3c7' : 'transparent'"
+                >
+                  <div style="display: flex; align-items: baseline; justify-content: space-between;
+                              margin-bottom: 4px;">
+                    <span style="font-size: 12px; color: #334155; font-weight: 500;">
+                      {{ row.label }}
+                    </span>
+                    <span
+                      style="font-size: 13px; font-weight: 700; font-feature-settings: 'tnum';"
+                      [style.color]="row.color"
+                    >{{ row.value }}</span>
+                  </div>
+                  <app-bar [value]="row.value" [color]="row.color" [height]="6" />
+                </div>
+              }
             </div>
           </div>
         </div>
@@ -123,12 +276,16 @@ interface Row {
 export class TabCalidadComponent {
   d = input.required<DetalleLlamada>();
 
-  readonly rows = computed<Row[]>(() =>
-    Object.entries(this.d().calidadDims).map(([k, v]) => ({
-      key: k,
-      value: v as number,
-      color: scoreColor(v as number).fg,
-    }))
+  /** Dimensión destacada al hacer hover sobre una observación. */
+  readonly highlightDim = signal<ObservacionDimension | null>(null);
+
+  readonly rows = computed<DimensionRow[]>(() =>
+      Object.entries(this.d().calidadDims).map(([k, v]) => ({
+        key: k,
+        label: DIM_LABELS[k] ?? k,
+        value: v as number,
+        color: scoreColor(v as number).fg,
+      }))
   );
 
   readonly totalAgente = computed<number>(() => {
@@ -138,21 +295,33 @@ export class TabCalidadComponent {
   });
 
   readonly globalColor = computed<string>(() => scoreColor(this.totalAgente()).fg);
-  readonly cxColor = computed<string>(() => scoreColor(this.d().cx).fg);
 
-  readonly cxLabel = computed<string>(() => {
-    const v = this.d().cx;
-    if (v >= 85) return 'Excelente';
-    if (v >= 70) return 'Buena';
-    if (v >= 55) return 'Aceptable';
-    return 'Deficiente';
-  });
+  /** Observaciones positivas (aplicó correctamente X). */
+  readonly positivas = computed<Observacion[]>(() =>
+      (this.d().observaciones || []).filter((o: Observacion) => o.kind === 'positive')
+  );
 
-  readonly cxBadgeBg = computed<string>(() => {
-    const v = this.d().cx;
-    if (v >= 85) return '#dcfce7';
-    if (v >= 70) return '#dbeafe';
-    if (v >= 55) return '#fef3c7';
-    return '#fee2e2';
-  });
+  /** Observaciones de mejora (oportunidades). */
+  readonly mejoras = computed<Observacion[]>(() =>
+      (this.d().observaciones || []).filter((o: Observacion) => o.kind === 'improvement')
+  );
+
+  /** Label visible de una dimensión. */
+  dimLabel(dim: string): string {
+    return DIM_LABELS[dim] ?? dim;
+  }
+
+  /**
+   * True si la dimensión de esta fila se corresponde con la que está
+   * destacada actualmente (la del hover sobre una observación).
+   *
+   * Maneja el caso producto/conocimiento: el backend emite "producto" en
+   * las observaciones pero la tabla muestra "conocimiento".
+   */
+  isDimHighlighted(rowKey: string): boolean {
+    const current = this.highlightDim();
+    if (!current) return false;
+    const rowAlias = DIM_ALIASES[rowKey] ?? rowKey;
+    return rowAlias === current;
+  }
 }

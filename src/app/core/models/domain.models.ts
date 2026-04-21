@@ -168,6 +168,35 @@ export interface CoachingHighlight {
   tipo: 'positivo' | 'mejora';
 }
 
+export type ObservacionKind = 'positive' | 'improvement';
+export type ObservacionDimension =
+    | 'saludo'
+    | 'empatia'
+    | 'eficiencia'
+    | 'claridad'
+    | 'producto'
+    | 'cierre'
+    | 'conocimiento';
+
+/**
+ * Observación estructurada del tab Calidad.
+ *
+ * Deriva en backend (phase5d_aggregator) de los MomentAnalysis:
+ *   - effectiveness >= 75 + technique   → kind='positive'
+ *   - effectiveness < 60  + recommendation → kind='improvement'
+ *
+ * El campo `dimension` permite conectar la observación con la barra de
+ * dimensión correspondiente en la UI (saludo/empatía/...).
+ */
+export interface Observacion {
+  momentType: string;
+  kind: ObservacionKind;
+  dimension: ObservacionDimension;
+  title: string;
+  detail: string;
+  effectiveness?: number | null;
+}
+
 export interface Recomendacion {
   nivel: 'ALTA' | 'MEDIA' | 'BAJA';
   tipo: string;
@@ -213,6 +242,15 @@ export interface DetalleLlamada {
   subcategoria: string;
   marca: string;
   resumen: string;
+  /**
+   * Descripción corta (1 línea) generada por phase5c_taxonomy.
+   * Usar en cabeceras y previews. El campo `resumen` es el largo (varios
+   * párrafos) que va en el tab Resumen ejecutivo.
+   *
+   * Es opcional para soportar llamadas antiguas en BD que no lo tengan
+   * todavía — el frontend debería caer a `resumen` truncado si está vacío.
+   */
+  oneLineSummary?: string;
   score: number;
   cx: number;
   complejidad: number;
@@ -233,7 +271,7 @@ export interface DetalleLlamada {
   momentos: Momento[];
   transcripcion: Transcripcion[];
   calidadDims: CalidadDimsCall;
-  observaciones: string[];
+  observaciones: Observacion[];
   coachingHighlights: CoachingHighlight[];
   recomendaciones: Recomendacion[];
   /**
@@ -383,4 +421,18 @@ export interface DashboardData {
    * sigue rellenando para no romper la ruta de detalle mientras se migra.
    */
   detalleLlamada: DetalleLlamada | null;
+}
+
+export interface Nota {
+  id: number;
+  autor: string;
+  texto: string;
+  color: string;
+  fecha: string;       // pre-formateada por backend ("18 Abr 2026, 12:45")
+}
+
+/** Payload para POST /api/calls/{id}/notes */
+export interface NotaCreate {
+  texto: string;
+  color?: string;
 }

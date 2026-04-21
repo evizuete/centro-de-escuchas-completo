@@ -2,15 +2,15 @@ import { DashboardData } from '../models/domain.models';
 
 // Genera heatmap emocional con patrones (lunes mañana y viernes tarde con más tensión)
 const genHeatmap = (): number[][] =>
-  Array.from({ length: 7 }, (_, d) =>
-    Array.from({ length: 12 }, (_, h) => {
-      const base = 60 + Math.sin((d * 12 + h) / 4) * 10;
-      const lunes = d === 0 && h < 4 ? -18 : 0;
-      const viernes = d === 4 && h > 7 ? -22 : 0;
-      const mediaSem = d > 4 ? 8 : 0;
-      return Math.max(20, Math.min(95, Math.round(base + lunes + viernes + mediaSem + (Math.random() * 8 - 4))));
-    })
-  );
+    Array.from({ length: 7 }, (_, d) =>
+        Array.from({ length: 12 }, (_, h) => {
+          const base = 60 + Math.sin((d * 12 + h) / 4) * 10;
+          const lunes = d === 0 && h < 4 ? -18 : 0;
+          const viernes = d === 4 && h > 7 ? -22 : 0;
+          const mediaSem = d > 4 ? 8 : 0;
+          return Math.max(20, Math.min(95, Math.round(base + lunes + viernes + mediaSem + (Math.random() * 8 - 4))));
+        })
+    );
 
 export const MOCK_DASHBOARD: DashboardData = {
   kpis: {
@@ -166,6 +166,7 @@ export const MOCK_DASHBOARD: DashboardData = {
     subcategoria: 'Añadir producto',
     marca: 'Yodeyma',
     resumen: "Nueva cliente (L'Atelier dei Capelli) realiza primer pedido de 4 perfumes por €87,55 con testers incluidos.",
+    oneLineSummary: "Primer pedido de cliente nuevo (€87,55) cerrado con upsell de testers gratuitos.",
     score: 92, cx: 95, complejidad: 28, agente: 92,
     interaccion: {
       canal: 'inbound',
@@ -220,11 +221,46 @@ export const MOCK_DASHBOARD: DashboardData = {
     ],
     calidadDims: { saludo: 95, empatia: 88, eficiencia: 92, claridad: 90, conocimiento: 94, cierre: 96 },
     observaciones: [
-      'Saludo profesional y acogedor desde el inicio',
-      'Verificó disponibilidad de stock en tiempo real correctamente',
-      'Aplicó correctamente la política de testers automáticamente',
-      'Derivó correctamente la solicitud de marketing sin comprometerse en exceso',
-      'Cierre emocional muy positivo que refuerza la fidelización',
+      {
+        momentType: 'greeting',
+        kind: 'positive',
+        dimension: 'saludo',
+        title: 'Saludo: buen manejo',
+        detail: 'Saludo profesional y acogedor desde el inicio con identificación clara del agente y de la empresa.',
+        effectiveness: 92,
+      },
+      {
+        momentType: 'key_information',
+        kind: 'positive',
+        dimension: 'producto',
+        title: 'Toma de pedido: buen manejo',
+        detail: 'Verificó disponibilidad de stock en tiempo real y confirmó las 4 referencias sin errores de cálculo.',
+        effectiveness: 88,
+      },
+      {
+        momentType: 'upsell_attempt',
+        kind: 'positive',
+        dimension: 'producto',
+        title: 'Venta adicional: buen manejo',
+        detail: 'Aplicó correctamente la política de testers gratuitos al detectar el umbral de €80 sin necesidad de prompt.',
+        effectiveness: 90,
+      },
+      {
+        momentType: 'issue_raised',
+        kind: 'improvement',
+        dimension: 'empatia',
+        title: 'Planteamiento del problema: oportunidad',
+        detail: 'El agente derivó la solicitud de material de marketing sin explorar antes si había otras necesidades específicas del salón. Oportunidad de hacer preguntas abiertas antes de derivar.',
+        effectiveness: 55,
+      },
+      {
+        momentType: 'closing',
+        kind: 'positive',
+        dimension: 'cierre',
+        title: 'Cierre: buen manejo',
+        detail: 'Cierre emocional muy positivo con resumen claro de próximos pasos que refuerza la fidelización de la nueva cliente.',
+        effectiveness: 95,
+      },
     ],
     coachingHighlights: [
       { t: '01:06', titulo: 'Upsell textbook', descripcion: 'Perfecta aplicación de la política de testers al detectar umbral.', tipo: 'positivo' },

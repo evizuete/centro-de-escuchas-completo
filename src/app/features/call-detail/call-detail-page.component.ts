@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, effect, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { CallsApiService } from '../../core/services/calls-api.service';
@@ -16,8 +16,8 @@ import { TabRecomendacionesComponent } from './tabs/tab-recomendaciones.componen
 import { TabNotasComponent } from './tabs/tab-notas.component';
 
 type TabId =
-  | 'resumen' | 'transcripcion' | 'momentos' | 'coaching'
-  | 'calidad' | 'analisis' | 'recomendaciones' | 'notas';
+    | 'resumen' | 'transcripcion' | 'momentos' | 'coaching'
+    | 'calidad' | 'analisis' | 'recomendaciones' | 'notas';
 
 interface TabDef { id: TabId; label: string; nuevo?: boolean; }
 
@@ -73,7 +73,7 @@ interface TabDef { id: TabId; label: string; nuevo?: boolean; }
             <app-tag variant="blue">{{ d.categoria }}</app-tag>
             <h1 style="margin: 8px 0 2px; font-size: 26px; font-weight: 700; color: #0f172a;">{{ d.cliente }}</h1>
             <div style="font-size: 13px; color: #64748b; margin-bottom: 8px;">{{ d.empresa }} · {{ d.ciudad }}</div>
-            <div style="font-size: 13px; color: #334155; line-height: 1.5; max-width: 620px;">{{ d.resumen }}</div>
+            <div style="font-size: 13px; color: #334155; line-height: 1.5; max-width: 620px;">{{ headerDescription() }}</div>
           </div>
           <div style="display: flex; gap: 12px;">
             <app-score-badge [value]="d.score" [label]="'VALORACIÓN\nLLAMADA'" size="lg" />
@@ -87,10 +87,10 @@ interface TabDef { id: TabId; label: string; nuevo?: boolean; }
         <div class="tabs">
           @for (t of tabs; track t.id) {
             <button
-              type="button"
-              class="tab"
-              [class.tab--active]="tab() === t.id"
-              (click)="tab.set(t.id)"
+                type="button"
+                class="tab"
+                [class.tab--active]="tab() === t.id"
+                (click)="tab.set(t.id)"
             >
               {{ t.label }}
               @if (t.nuevo) {
@@ -125,6 +125,21 @@ export class CallDetailPageComponent {
   readonly detalle = signal<DetalleLlamada | null>(null);
   readonly loading = signal<boolean>(false);
   readonly error = signal<string | null>(null);
+
+  /**
+   * Texto corto para la cabecera. Prefiere `oneLineSummary` (generado por
+   * phase5c_taxonomy en el backend). Si está vacío (llamadas viejas o sin
+   * taxonomía), cae al `resumen` largo recortado a 200 chars con ellipsis.
+   */
+  readonly headerDescription = computed<string>(() => {
+    const d = this.detalle();
+    if (!d) return '';
+    const short = (d.oneLineSummary || '').trim();
+    if (short) return short;
+    const long = (d.resumen || '').trim();
+    if (long.length <= 200) return long;
+    return long.substring(0, 200).trimEnd() + '…';
+  });
 
   readonly tab = signal<TabId>('resumen');
   readonly tabs: TabDef[] = [
