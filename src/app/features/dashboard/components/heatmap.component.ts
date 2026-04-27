@@ -23,9 +23,9 @@ export type HeatmapView = 'sentimiento' | 'volumen' | 'riesgo';
           <div style="font-size: 10px; color: #64748b; font-weight: 600;">{{ day }}</div>
           @for (v of data()[di]; track $index; let hi = $index) {
             <div
-              [title]="day + ' ' + hours[hi] + ':00 · ' + v"
-              [style.background]="colorFor(v)"
-              style="aspect-ratio: 1 / 1; border-radius: 3px; cursor: pointer;"
+                [title]="day + ' ' + hours[hi] + ':00 · ' + v"
+                [style.background]="colorFor(v)"
+                style="aspect-ratio: 1 / 1; border-radius: 3px; cursor: pointer;"
             ></div>
           }
         </div>
@@ -40,7 +40,6 @@ export type HeatmapView = 'sentimiento' | 'volumen' | 'riesgo';
           }
         </div>
         <span>Más</span>
-        <span style="margin-left: auto; color: #94a3b8;">Detectado: viernes tarde con tensión</span>
       </div>
     </div>
   `,

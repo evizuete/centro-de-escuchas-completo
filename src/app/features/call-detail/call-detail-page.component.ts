@@ -71,8 +71,13 @@ interface TabDef { id: TabId; label: string; nuevo?: boolean; }
         <div class="detail-header">
           <div style="flex: 1; min-width: 0;">
             <app-tag variant="blue">{{ d.categoria }}</app-tag>
-            <h1 style="margin: 8px 0 2px; font-size: 26px; font-weight: 700; color: #0f172a;">{{ d.cliente }}</h1>
-            <div style="font-size: 13px; color: #64748b; margin-bottom: 8px;">{{ d.empresa }} · {{ d.ciudad }}</div>
+            <h1
+                style="margin: 8px 0 2px; font-size: 26px; font-weight: 700; color: #0f172a;
+                       font-feature-settings: 'tnum'; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;"
+            >{{ d.dialedNumber || '—' }}</h1>
+            <div style="font-size: 13px; color: #64748b; margin-bottom: 8px;">
+              {{ headerSubtitle() }}
+            </div>
             <div style="font-size: 13px; color: #334155; line-height: 1.5; max-width: 620px;">{{ headerDescription() }}</div>
           </div>
           <div style="display: flex; gap: 12px;">
@@ -125,6 +130,17 @@ export class CallDetailPageComponent {
   readonly detalle = signal<DetalleLlamada | null>(null);
   readonly loading = signal<boolean>(false);
   readonly error = signal<string | null>(null);
+
+  /**
+   * Subtítulo del header: "campaign · dispositionCode".
+   * Omite los trozos vacíos para no mostrar "— · —" o separadores sueltos.
+   */
+  readonly headerSubtitle = computed<string>(() => {
+    const d = this.detalle();
+    if (!d) return '';
+    const parts = [d.campaign, d.dispositionCode].filter((p) => !!p && p.trim().length > 0);
+    return parts.join(' · ') || '—';
+  });
 
   /**
    * Texto corto para la cabecera. Prefiere `oneLineSummary` (generado por

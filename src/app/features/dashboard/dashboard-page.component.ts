@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, DatePipe } from '@angular/common';
 import { Router } from '@angular/router';
 import { DashboardApiService, DashboardPeriod } from '../../core/services/dashboard-api.service';
 import { MOCK_DASHBOARD } from '../../core/services/dashboard.data';
@@ -21,6 +21,7 @@ type Periodo = DashboardPeriod;
   standalone: true,
   imports: [
     CommonModule,
+    DatePipe,
     IconComponent,
     TagComponent,
     DonutComponent,
@@ -38,16 +39,18 @@ type Periodo = DashboardPeriod;
       <header class="page__header">
         <div>
           <h1 class="page__title">Dashboard</h1>
-          <div class="page__subtitle">Rendimiento del equipo · Viernes 18 Abr 2026</div>
+          <div class="page__subtitle">
+            Rendimiento del equipo · {{ today() | date:'EEEE d MMM y' }}
+          </div>
         </div>
         <div style="display: flex; gap: 10px; align-items: center;">
           <div class="seg">
             @for (p of periodos; track p) {
               <button
-                type="button"
-                class="seg__btn"
-                [class.seg__btn--active]="periodo() === p"
-                (click)="periodo.set(p)"
+                  type="button"
+                  class="seg__btn"
+                  [class.seg__btn--active]="periodo() === p"
+                  (click)="periodo.set(p)"
               >
                 {{ p | titlecase }}
               </button>
@@ -62,46 +65,46 @@ type Periodo = DashboardPeriod;
       <!-- KPIs -->
       <div class="kpis">
         <app-kpi-card
-          icon="phone" iconColor="#3b82f6"
-          labelLine1="Llamadas" labelLine2="Total del período"
-          [value]="d().kpis.llamadas.value"
-          [delta]="d().kpis.llamadas.delta"
-          [spark]="d().kpis.llamadas.spark"
-          sparkColor="#3b82f6"
+            icon="phone" iconColor="#3b82f6"
+            labelLine1="Llamadas" labelLine2="Total del período"
+            [value]="d().kpis.llamadas.value"
+            [delta]="d().kpis.llamadas.delta"
+            [spark]="d().kpis.llamadas.spark"
+            sparkColor="#3b82f6"
         />
         <app-kpi-card
-          icon="clock" iconColor="#64748b"
-          labelLine1="Duración" labelLine2="Media por llamada"
-          [value]="d().kpis.duracionMedia.value"
-          [sub]="'Cola: ' + d().kpis.duracionMedia.cola"
+            icon="clock" iconColor="#64748b"
+            labelLine1="Duración" labelLine2="Media por llamada"
+            [value]="d().kpis.duracionMedia.value"
+            [sub]="'Cola: ' + d().kpis.duracionMedia.cola"
         />
         <app-kpi-card
-          icon="sparkles" iconColor="#f59e0b"
-          labelLine1="Valoración" labelLine2="Llamada"
-          [value]="d().kpis.saludMedia.value"
-          [delta]="d().kpis.saludMedia.delta + 'pt'"
-          sub="vs ayer"
+            icon="sparkles" iconColor="#f59e0b"
+            labelLine1="Valoración" labelLine2="Llamada"
+            [value]="d().kpis.saludMedia.value"
+            [delta]="d().kpis.saludMedia.delta + 'pt'"
+            sub="vs ayer"
         />
         <app-kpi-card
-          icon="star" iconColor="#8b5cf6"
-          labelLine1="Experiencia" labelLine2="Cliente"
-          [value]="d().kpis.experienciaCliente.value"
-          [delta]="d().kpis.experienciaCliente.delta + 'pt'"
-          sub="vs ayer"
+            icon="star" iconColor="#8b5cf6"
+            labelLine1="Experiencia" labelLine2="Cliente"
+            [value]="d().kpis.experienciaCliente.value"
+            [delta]="d().kpis.experienciaCliente.delta + 'pt'"
+            sub="vs ayer"
         />
         <app-kpi-card
-          icon="euro" iconColor="#10b981"
-          labelLine1="Facturación" labelLine2="Período"
-          [value]="d().kpis.facturacion.value"
-          [delta]="d().kpis.facturacion.delta"
-          sub="vs ayer"
+            icon="euro" iconColor="#10b981"
+            labelLine1="Facturación" labelLine2="Período"
+            [value]="d().kpis.facturacion.value"
+            [delta]="d().kpis.facturacion.delta"
+            sub="vs ayer"
         />
         <app-kpi-card
-          icon="alert" iconColor="#dc2626"
-          labelLine1="Riesgos" labelLine2="Altos"
-          [value]="d().kpis.riesgosAltos.value"
-          [sub]="d().kpis.riesgosAltos.toReview + ' por revisar'"
-          [danger]="true"
+            icon="alert" iconColor="#dc2626"
+            labelLine1="Riesgos" labelLine2="Altos"
+            [value]="d().kpis.riesgosAltos.value"
+            [sub]="d().kpis.riesgosAltos.toReview + ' por revisar'"
+            [danger]="true"
         />
       </div>
 
@@ -160,8 +163,8 @@ type Periodo = DashboardPeriod;
                 <div style="display: flex; gap: 4px; flex-wrap: wrap; margin-top: 6px; padding-left: 18px;">
                   @for (s of t.topSub.slice(0, 3); track s.sub) {
                     <span
-                      [style.background]="t.color + '10'"
-                      style="font-size: 10.5px; color: #475569; padding: 2px 6px; border-radius: 3px; font-weight: 500;"
+                        [style.background]="t.color + '10'"
+                        style="font-size: 10.5px; color: #475569; padding: 2px 6px; border-radius: 3px; font-weight: 500;"
                     >
                       {{ s.sub }} <span [style.color]="t.color" style="font-weight: 700; margin-left: 2px;">{{ s.n }}</span>
                     </span>
@@ -184,10 +187,10 @@ type Periodo = DashboardPeriod;
             <div class="seg seg--sm">
               @for (h of heatmapOptions; track h[0]) {
                 <button
-                  type="button"
-                  class="seg__btn"
-                  [class.seg__btn--active]="heatmapView() === h[0]"
-                  (click)="heatmapView.set(h[0])"
+                    type="button"
+                    class="seg__btn"
+                    [class.seg__btn--active]="heatmapView() === h[0]"
+                    (click)="heatmapView.set(h[0])"
                 >{{ h[1] }}</button>
               }
             </div>
@@ -233,22 +236,28 @@ type Periodo = DashboardPeriod;
             <div>
               <h3 class="card__title">Alertas detectadas</h3>
               <div class="card__subtitle">
-                <span style="display: inline-flex; align-items: center; gap: 4px;">
-                  <span style="width: 5px; height: 5px; border-radius: 50%; background: #94a3b8;"></span>
-                  Tras procesar · último análisis hace ~15 min
-                </span>
+                @if (d().alertas.length > 0) {
+                  <span style="display: inline-flex; align-items: center; gap: 4px;">
+                    <span style="width: 5px; height: 5px; border-radius: 50%; background: #dc2626;"></span>
+                    Detectadas tras el análisis del pipeline
+                  </span>
+                } @else {
+                  <span style="color: #94a3b8;">No hay alertas pendientes.</span>
+                }
               </div>
             </div>
-            <app-tag variant="red">{{ d().alertas.length }} pendientes</app-tag>
+            <app-tag [variant]="d().alertas.length > 0 ? 'red' : 'green'">
+              {{ d().alertas.length > 0 ? d().alertas.length + ' pendientes' : 'Sin alertas' }}
+            </app-tag>
           </div>
           <div style="display: flex; flex-direction: column; gap: 8px;">
             @for (a of d().alertas; track $index) {
               <div class="alert-row">
                 <div
-                  class="alert-row__tag"
-                  [class.alert-row__tag--alta]="a.nivel === 'ALTA'"
-                  [class.alert-row__tag--media]="a.nivel === 'MEDIA'"
-                  [class.alert-row__tag--baja]="a.nivel === 'BAJA'"
+                    class="alert-row__tag"
+                    [class.alert-row__tag--alta]="a.nivel === 'ALTA'"
+                    [class.alert-row__tag--media]="a.nivel === 'MEDIA'"
+                    [class.alert-row__tag--baja]="a.nivel === 'BAJA'"
                 >{{ a.nivel }}</div>
                 <div style="flex: 1; min-width: 0;">
                   <div style="font-size: 12px; font-weight: 600; color: #0f172a;">{{ a.tipo }}</div>
@@ -257,6 +266,13 @@ type Periodo = DashboardPeriod;
                     <span>{{ a.agente }}</span><span>·</span><span>detectada hace {{ a.hace }}</span>
                   </div>
                 </div>
+              </div>
+            }
+            @if (d().alertas.length === 0) {
+              <div style="padding: 24px 16px; text-align: center; color: #94a3b8;
+                          font-size: 13px; background: #fafafa;
+                          border: 1px dashed #e2e8f0; border-radius: 8px;">
+                No se han detectado alertas operativas en las llamadas del periodo.
               </div>
             }
           </div>
@@ -281,6 +297,9 @@ export class DashboardPageComponent {
   readonly loading = signal<boolean>(false);
   readonly error = signal<string | null>(null);
 
+  /** Fecha actual para la cabecera ("Rendimiento del equipo · Martes 21 Abr 2026"). */
+  readonly today = signal<Date>(new Date());
+
   readonly periodo = signal<Periodo>('semana');
   readonly periodos: Periodo[] = ['hoy', 'semana', 'mes', 'trimestre'];
 
@@ -295,9 +314,9 @@ export class DashboardPageComponent {
   readonly selectedAgente = computed(() => this.d().agentesCalidad[this.selectedAgenteIdx()]);
 
   readonly llamadasAtencion = computed<Llamada[]>(() =>
-    this.d()
-      .llamadas.filter((l) => l.estado === 'A REVISAR' || l.estado === 'EN REVISIÓN')
-      .slice(0, 4)
+      this.d()
+          .llamadas.filter((l) => l.estado === 'A REVISAR' || l.estado === 'EN REVISIÓN')
+          .slice(0, 4)
   );
 
   constructor() {

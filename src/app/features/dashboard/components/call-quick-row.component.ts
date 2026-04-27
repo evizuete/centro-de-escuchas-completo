@@ -15,15 +15,15 @@ import { sentimentColor } from '../../../core/services/style.utils';
     <button type="button" class="call-quick-row" (click)="open.emit(llamada().id)">
       <app-score-badge [value]="llamada().score" size="sm" />
       <div style="flex: 1; min-width: 0; text-align: left;">
-        <div style="font-size: 13px; font-weight: 600; color: #0f172a;">{{ llamada().cliente }}</div>
-        <div style="font-size: 11px; color: #64748b;">{{ llamada().empresa || '—' }}</div>
+        <div style="font-size: 13px; font-weight: 600; color: #0f172a;">{{ llamada().agenteId || '—' }}</div>
+        <div style="font-size: 11px; color: #64748b;">{{ subtitle() }}</div>
       </div>
       <div style="text-align: right;">
         <div style="font-size: 11px; color: #64748b; font-weight: 500;">{{ llamada().categoria.toLowerCase() }}</div>
         <div style="font-size: 11px; font-weight: 600;" [style.color]="sentColor()">{{ llamada().sentimiento }}</div>
       </div>
-      <app-tag [variant]="llamada().estado === 'A REVISAR' ? 'amber' : 'blue'">
-        {{ llamada().estado === 'A REVISAR' ? 'A revisar' : 'Revisado (1/2)' }}
+      <app-tag [variant]="estadoVariant()">
+        {{ llamada().estado }}
       </app-tag>
       <app-icon name="chevron" [size]="14" color="#94a3b8" />
     </button>
@@ -34,4 +34,22 @@ export class CallQuickRowComponent {
   open = output<string>();
 
   sentColor = computed<string>(() => sentimentColor(this.llamada().sentimiento));
+
+  /** Segunda línea: "campaign · dialedNumber", omitiendo los vacíos. */
+  subtitle = computed<string>(() => {
+    const l = this.llamada();
+    const parts = [l.campaign, l.dialedNumber].filter((p) => !!p && p.trim().length > 0);
+    return parts.join(' · ') || '—';
+  });
+
+  /** Variante de color del tag según el estado de revisión de la llamada. */
+  estadoVariant = computed<'amber' | 'blue' | 'green' | 'red'>(() => {
+    switch (this.llamada().estado) {
+      case 'A REVISAR':    return 'amber';
+      case 'EN REVISIÓN':  return 'blue';
+      case 'REVISADO':     return 'green';
+      case 'NO APLICA':    return 'red';
+      default:             return 'blue';
+    }
+  });
 }

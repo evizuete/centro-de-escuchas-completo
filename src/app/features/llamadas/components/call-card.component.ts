@@ -25,8 +25,8 @@ import { sentimentColor } from '../../../core/services/style.utils';
 
       <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 10px;">
         <div style="flex: 1; min-width: 0; text-align: left;">
-          <div style="font-size: 15px; font-weight: 700; color: #0f172a;">{{ llamada().cliente }}</div>
-          <div style="font-size: 12px; color: #64748b;">{{ llamada().empresa }}</div>
+          <div style="font-size: 15px; font-weight: 700; color: #0f172a;">{{ llamada().agenteId || '—' }}</div>
+          <div style="font-size: 12px; color: #64748b;">{{ subtitle() }}</div>
           @if (llamada().subcategoria) {
             <div style="font-size: 11px; color: #94a3b8; margin-top: 2px; font-style: italic;">
               {{ llamada().subcategoria }}
@@ -66,8 +66,8 @@ import { sentimentColor } from '../../../core/services/style.utils';
       <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 10px; padding-top: 10px; border-top: 1px solid #f1f5f9;">
         <span style="font-size: 12px; font-weight: 600;" [style.color]="sentColor()">{{ llamada().sentimiento }}</span>
         <span
-          style="font-size: 13px; font-weight: 700; font-feature-settings: 'tnum';"
-          [style.color]="llamada().facturacion < 0 ? '#dc2626' : '#0f172a'"
+            style="font-size: 13px; font-weight: 700; font-feature-settings: 'tnum';"
+            [style.color]="llamada().facturacion < 0 ? '#dc2626' : '#0f172a'"
         >{{ llamada().facturacion === 0 ? '—' : '€' + llamada().facturacion.toFixed(2) }}</span>
       </div>
     </button>
@@ -84,5 +84,12 @@ export class CallCardComponent {
     if (e === 'EN REVISIÓN') return '#3b82f6';
     if (e === 'REVISADO') return '#22c55e';
     return '#94a3b8';
+  });
+
+  /** Subtítulo "campaign · dialedNumber" saltándose los vacíos. */
+  subtitle = computed<string>(() => {
+    const l = this.llamada();
+    const parts = [l.campaign, l.dialedNumber].filter((p) => !!p && p.trim().length > 0);
+    return parts.join(' · ') || '—';
   });
 }

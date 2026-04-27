@@ -92,11 +92,26 @@ export interface AgenteCalidad {
   dims: Dims;
 }
 
+/**
+ * Metadata operacional del PBX extraída en phase0_metadata.
+ *
+ * Sustituye a la antigua metadata de contacto (cliente/empresa/ciudad),
+ * que dejó de extraerse por no ser fiable. Los campos actuales son
+ * todos opcionales en origen (el PBX no siempre los informa): cuando
+ * falten, el backend devuelve string vacío o null en `inSchedule`.
+ */
 export interface Llamada {
   id: string;
-  cliente: string;
-  empresa: string;
-  ciudad: string;
+  /** PBX.dialedNumber — número marcado por el cliente. */
+  dialedNumber: string;
+  /** PBX.dispositionCode — código de disposición del agente al cerrar. */
+  dispositionCode: string;
+  /** PBX.inSchedule — true si la llamada ocurrió dentro del horario de la campaña. */
+  inSchedule: boolean | null;
+  /** PBX.releaseCode — código de release del canal (quién/cómo cortó). */
+  releaseCode: string;
+  /** PBX.campaign — campaña a la que pertenece la llamada. */
+  campaign: string;
   categoria: string;
   tipo: TipoCaso;
   subcategoria: string;
@@ -116,6 +131,10 @@ export interface Llamada {
   no_leida: boolean;
   pinned: boolean;
   emoji_arc: number[];
+  campaña: string;
+  sentido: string;
+  tiempoEspera: string;
+  agentesFallidos: number;
 }
 
 export interface Producto {
@@ -234,9 +253,16 @@ export interface AnalisisCall {
 
 export interface DetalleLlamada {
   id: string;
-  cliente: string;
-  empresa: string;
-  ciudad: string;
+  /** PBX.dialedNumber — número marcado por el cliente. */
+  dialedNumber: string;
+  /** PBX.dispositionCode — código de disposición del agente al cerrar. */
+  dispositionCode: string;
+  /** PBX.inSchedule — true si la llamada ocurrió dentro del horario de la campaña. */
+  inSchedule: boolean | null;
+  /** PBX.releaseCode — código de release del canal (quién/cómo cortó). */
+  releaseCode: string;
+  /** PBX.campaign — campaña a la que pertenece la llamada. */
+  campaign: string;
   categoria: string;
   tipo: TipoCaso;
   subcategoria: string;
@@ -256,7 +282,6 @@ export interface DetalleLlamada {
   complejidad: number;
   agente: number;
   interaccion: {
-    canal: string;
     agente: string;
     inicio: string;
     duracion: string;
@@ -279,6 +304,26 @@ export interface DetalleLlamada {
    * Opcional: el backend lo marca `null` si aún no hay pipeline poblado.
    */
   analisis?: AnalisisCall | null;
+  datosClave?: DatosClave | null;
+  originalAudio: string | null;
+  translatedAudio: string | null;
+  /**
+   * TRUE si la transcripción es sospechosamente corta (wpm < 60 con
+   * llamada ≥ 1 min). Lo marca la Fase 2 del pipeline. El frontend lo
+   * enseña como chip en la cabecera del tab Transcripción para que el
+   * supervisor revise la llamada manualmente.
+   */
+  transcriptSuspicious: boolean;
+
+  /**
+   * Razones que disparan el flag `transcriptSuspicious`. Una o varias de:
+   *   - "language_mismatch"  — idioma detectado ≠ idioma hint (metadata PBX)
+   *   - "low_snr_agent"      — canal del agente con SNR < 10 dB
+   *   - "low_snr_client"     — canal del cliente con SNR < 10 dB
+   *   - "channel_imbalance"  — un canal con <15% de los turnos del otro
+   *   - "unknown"            — wpm muy bajo sin causa catalogada
+   */
+  transcriptSuspiciousReasons: string[];
 }
 
 export interface Supervisor {
@@ -435,4 +480,13 @@ export interface Nota {
 export interface NotaCreate {
   texto: string;
   color?: string;
+}
+
+export interface DatosClave {
+  referencias: string[];    // nº pedido, ticket, incidencia...
+  importes: string[];       // "€87,55", etc.
+  personas: string[];       // gente mencionada (no el agente)
+  emails: string[];
+  telefonos: string[];
+  competidores: string[];   // si se menciona la competencia
 }

@@ -26,7 +26,7 @@ interface Series {
             <text [attr.x]="pad.l - 6" [attr.y]="y(v) + 3" text-anchor="end" font-size="9" fill="#94a3b8">{{ v }}</text>
           </g>
         }
-        @for (w of weeks; track w; let i = $index) {
+        @for (w of weeks(); track $index; let i = $index) {
           <text [attr.x]="x(i)" [attr.y]="H - 8" text-anchor="middle" font-size="10" fill="#64748b">{{ w }}</text>
         }
         @for (s of series(); track s.key) {
@@ -57,12 +57,43 @@ export class TrendChartComponent {
   readonly H = 160;
   readonly pad = { l: 30, r: 10, t: 10, b: 26 };
   readonly gridY = [60, 70, 80, 90];
-  readonly weeks = ['Sem 12', 'Sem 13', 'Sem 14', 'Sem 15'];
+
+  /**
+   * Etiquetas dinámicas: las últimas N semanas ISO contando hacia atrás
+   * desde hoy. Depende del length del array de `score` en `data()` para
+   * que si el backend devuelve 3, 4 o 5 puntos, las etiquetas coincidan.
+   */
+  readonly weeks = computed<string[]>(() => {
+    const n = this.data().score.length || 4;
+    const today = new Date();
+    const out: string[] = [];
+    for (let i = n - 1; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - 7 * i);
+      out.push(`Sem ${this.isoWeek(d)}`);
+    }
+    return out;
+  });
+
+  /** Número de semana ISO 8601 (1-53). */
+  private isoWeek(d: Date): number {
+    const target = new Date(d.valueOf());
+    const dayNr = (d.getDay() + 6) % 7;
+    target.setDate(target.getDate() - dayNr + 3);
+    const firstThursday = new Date(target.getFullYear(), 0, 4);
+    const diff = target.valueOf() - firstThursday.valueOf();
+    return 1 + Math.round(diff / (7 * 24 * 60 * 60 * 1000));
+  }
+
   private readonly min = 60;
   private readonly max = 90;
 
   x(i: number): number {
-    return this.pad.l + (i / 3) * (this.W - this.pad.l - this.pad.r);
+    // Distribuye uniformemente los puntos sobre el rango. `n-1` evita div/0
+    // cuando sólo hay 1 punto.
+    const n = this.data().score.length || 1;
+    const denom = Math.max(1, n - 1);
+    return this.pad.l + (i / denom) * (this.W - this.pad.l - this.pad.r);
   }
   y(v: number): number {
     return this.pad.t + (1 - (v - this.min) / (this.max - this.min)) * (this.H - this.pad.t - this.pad.b);

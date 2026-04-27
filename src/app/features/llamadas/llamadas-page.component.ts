@@ -64,18 +64,18 @@ interface ViewOption { mode: ViewMode; icon: IconName; }
           <span style="font-size: 11px; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; margin-right: 2px;">Tipo:</span>
           @for (chip of tipoChips; track chip.key) {
             <button
-              type="button"
-              class="chip"
-              [class.chip--active]="tipoFilter() === chip.key"
-              (click)="tipoFilter.set(chip.key)"
-              [style.background]="chipBg(chip)"
-              [style.color]="chipFg(chip)"
-              [style.borderColor]="chipBorder(chip)"
+                type="button"
+                class="chip"
+                [class.chip--active]="tipoFilter() === chip.key"
+                (click)="tipoFilter.set(chip.key)"
+                [style.background]="chipBg(chip)"
+                [style.color]="chipFg(chip)"
+                [style.borderColor]="chipBorder(chip)"
             >
               @if (chip.color) {
                 <span
-                  [style.background]="chip.color"
-                  style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: 5px; vertical-align: middle;"
+                    [style.background]="chip.color"
+                    style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: 5px; vertical-align: middle;"
                 ></span>
               }
               {{ chip.label }}
@@ -84,13 +84,13 @@ interface ViewOption { mode: ViewMode; icon: IconName; }
           <div style="margin-left: auto; display: flex; gap: 6px;">
             @for (chip of estadoChips; track chip.key) {
               <button
-                type="button"
-                class="chip"
-                [class.chip--active]="estadoFilter() === chip.key"
-                [class.chip--amber]="chip.cls === 'amber'"
-                [class.chip--blue]="chip.cls === 'blue'"
-                [class.chip--green]="chip.cls === 'green'"
-                (click)="estadoFilter.set(chip.key)"
+                  type="button"
+                  class="chip"
+                  [class.chip--active]="estadoFilter() === chip.key"
+                  [class.chip--amber]="chip.cls === 'amber'"
+                  [class.chip--blue]="chip.cls === 'blue'"
+                  [class.chip--green]="chip.cls === 'green'"
+                  (click)="estadoFilter.set(chip.key)"
               >{{ chip.label }}</button>
             }
           </div>
@@ -116,35 +116,35 @@ interface ViewOption { mode: ViewMode; icon: IconName; }
       <!-- Search con modo semántico -->
       <div class="search-bar" [class.search-bar--semantic]="semanticMode()">
         <app-icon
-          [name]="semanticMode() ? 'brain' : 'search'"
-          [size]="16"
-          [color]="semanticMode() ? '#8b5cf6' : '#64748b'"
+            [name]="semanticMode() ? 'brain' : 'search'"
+            [size]="16"
+            [color]="semanticMode() ? '#8b5cf6' : '#64748b'"
         />
         <input
-          class="search-bar__input"
-          [value]="query()"
-          (input)="onQueryInput($event)"
-          [placeholder]="semanticMode()
-            ? 'Pregunta en lenguaje natural: \\'llamadas donde el cliente pidió descuento\\' o \\'tono agresivo\\'…'
-            : 'Buscar por cliente, empresa o agente…'"
+            class="search-bar__input"
+            [value]="query()"
+            (input)="onQueryInput($event)"
+            [placeholder]="semanticMode()
+            ? 'Pregunta en lenguaje natural: <llamadas donde el cliente pidió descuento> o <tono agresivo>…'
+            : 'Buscar por agente…'"
         />
         <button
-          type="button"
-          class="semantic-toggle"
-          [class.semantic-toggle--on]="semanticMode()"
-          (click)="semanticMode.set(!semanticMode())"
-          title="Búsqueda semántica con IA"
+            type="button"
+            class="semantic-toggle"
+            [class.semantic-toggle--on]="semanticMode()"
+            (click)="semanticMode.set(!semanticMode())"
+            title="Búsqueda semántica con IA"
         >
           <app-icon name="sparkles" [size]="13" /> <span>Semántica</span>
         </button>
         <div style="display: flex; gap: 4px; margin-left: 8px; border-left: 1px solid #e2e8f0; padding-left: 8px;">
           @for (v of viewOptions; track v.mode) {
             <button
-              type="button"
-              class="icon-btn"
-              [class.icon-btn--active]="view() === v.mode"
-              (click)="view.set(v.mode)"
-              [title]="v.mode"
+                type="button"
+                class="icon-btn"
+                [class.icon-btn--active]="view() === v.mode"
+                (click)="view.set(v.mode)"
+                [title]="v.mode"
             >
               <app-icon [name]="v.icon" [size]="14" />
             </button>
@@ -172,9 +172,9 @@ interface ViewOption { mode: ViewMode; icon: IconName; }
           <div class="inbox-list">
             @for (l of filtered(); track l.id) {
               <app-inbox-row
-                [llamada]="l"
-                [selected]="selected() === l.id"
-                (select)="selected.set($event)"
+                  [llamada]="l"
+                  [selected]="selected() === l.id"
+                  (select)="selected.set($event)"
               />
             }
           </div>
@@ -196,37 +196,41 @@ interface ViewOption { mode: ViewMode; icon: IconName; }
         <div class="card" style="padding: 0; overflow: hidden;">
           <table class="data-table">
             <thead>
-              <tr>
-                <th>Cliente</th>
-                <th>Empresa</th>
-                <th>Tipo / Subcategoría</th>
-                <th>Estado</th>
-                <th style="text-align: right;">Valoración</th>
-                <th style="text-align: right;">Experiencia</th>
-                <th style="text-align: right;">Agente</th>
-                <th>Sentimiento</th>
-                <th style="text-align: right;">Duración</th>
-                <th style="text-align: right;">€</th>
-                <th></th>
-              </tr>
+            <tr>
+              <th>Agente</th>
+              <th>Campaña</th>
+              <th>Nº marcado</th>
+              <th>Tipo / Subcategoría</th>
+              <th>Estado</th>
+              <th style="text-align: right;">Valoración</th>
+              <th style="text-align: right;">Experiencia</th>
+              <th style="text-align: right;">Agente</th>
+              <th>Sentimiento</th>
+              <th style="text-align: right;">Duración</th>
+              <th style="text-align: right;">€</th>
+              <th></th>
+            </tr>
             </thead>
             <tbody>
               @for (l of filtered(); track l.id) {
                 <tr (click)="openCall(l.id)">
-                  <td style="font-weight: 600;">{{ l.cliente }}</td>
-                  <td style="color: #64748b;">{{ l.empresa }}</td>
+                  <td style="font-weight: 600;">{{ l.agenteId || '—' }}</td>
+                  <td style="color: #64748b;">{{ l.campaign || '—' }}</td>
+                  <td
+                      style="color: #64748b; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-feature-settings: 'tnum';"
+                  >{{ l.dialedNumber || '—' }}</td>
                   <td><app-tipo-tag [tipo]="l.tipo" [subcategoria]="l.subcategoria" /></td>
                   <td><app-estado-tag [estado]="l.estado" /></td>
                   <td
-                    style="text-align: right; font-weight: 700; font-feature-settings: 'tnum';"
-                    [style.color]="scoreFg(l.score)"
+                      style="text-align: right; font-weight: 700; font-feature-settings: 'tnum';"
+                      [style.color]="scoreFg(l.score)"
                   >{{ l.score }}</td>
                   <td style="text-align: right; font-feature-settings: 'tnum';">{{ l.cx }}</td>
                   <td style="text-align: right; font-feature-settings: 'tnum';">{{ l.agente }}</td>
                   <td>
                     <span
-                      style="font-weight: 600; font-size: 12px;"
-                      [style.color]="sentFg(l.sentimiento)"
+                        style="font-weight: 600; font-size: 12px;"
+                        [style.color]="sentFg(l.sentimiento)"
                     >{{ l.sentimiento }}</span>
                   </td>
                   <td style="text-align: right; font-feature-settings: 'tnum'; color: #64748b;">{{ l.duracion }}</td>
@@ -302,13 +306,7 @@ export class LlamadasPageComponent implements OnInit {
 
     const q = this.query().toLowerCase().trim();
     if (q && !this.semanticMode()) {
-      list = list.filter(
-        (l) =>
-          l.cliente.toLowerCase().includes(q) ||
-          l.empresa.toLowerCase().includes(q) ||
-          l.resumen.toLowerCase().includes(q) ||
-          (l.subcategoria ?? '').toLowerCase().includes(q)
-      );
+      list = list.filter((l) => (l.agenteId ?? '').toLowerCase().includes(q));
     }
     return list;
   });
